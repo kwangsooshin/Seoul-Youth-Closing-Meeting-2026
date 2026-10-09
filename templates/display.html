@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 서울청년정책네트워크 총회 현장 추첨</title>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="shortcut icon" href="/logo.png">
+  <!-- Google Fonts & CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <!-- YouTube IFrame Player API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <style>
+    :root {
+      /* 서울청년정책네트워크 브랜드 컬러 팔레트 */
+      --bg-light: #f8fafc;
+      --bg-gradient-end: #edf2f7;
+      --card-bg: rgba(255, 255, 255, 0.94);
+      --card-border: rgba(226, 232, 240, 0.9);
+      
+      /* 브랜드 청록 & 청색 (Brand Blue/Teal) */
+      --primary-blue: #0284c7;
+      --primary-navy: #0c4a6e;
+      --primary-teal: #1797a6;
+      --primary-blue-glow: rgba(2, 132, 199, 0.25);
+
+      /* 브랜드 주황색 (Brand Orange) */
+      --accent-orange: #f5901e;
+      --accent-orange-dark: #ea580c;
+      --accent-orange-light: #fb923c;
+      --accent-orange-glow: rgba(245, 144, 30, 0.35);
+
+      /* 텍스트 색상 */
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-sub: #475569;
+
+      /* 섀도우 및 효과 */
+      --glass-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(226, 232, 240, 0.85);
+      --card-hover-shadow: 0 20px 40px -10px rgba(2, 132, 199, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-light);
+      background-image: 
+        radial-gradient(circle at 10% 15%, rgba(2, 132, 199, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 90% 85%, rgba(245, 144, 30, 0.09) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, #f8fafc 0%, var(--bg-gradient-end) 100%);
+      color: var(--text-main);
+      font-family: 'Pretendard', 'Outfit', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* 상단 네비/헤더 */
+    header {
+      padding: 18px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+      backdrop-filter: blur(14px);
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-logo-img {
+      height: 44px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
+    }
+
+    .badge-live {
+      background: rgba(2, 132, 199, 0.08);
+      border: 1.5px solid var(--primary-blue);
+      color: var(--primary-blue);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      animation: pulse-glow-blue 2s infinite;
+    }
+
+    .badge-live::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      background: var(--accent-orange);
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px var(--accent-orange);
+    }
+
+    h1.title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #0f172a;
+    }
+
+    .brand-net {
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .c-teal {
+      color: #1797a6 !important; /* 청록색: 서울, 년, 책, 트워크 */
+    }
+
+    .c-orange {
+      color: #f5901e !important; /* 주황색: 청, 정, 네 */
+    }
+
+    .text-black {
+      color: #0f172a !important; /* 관련없는 글씨는 검정색 */
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-icon {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: var(--text-sub);
+      padding: 9px 16px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon:hover {
+      background: #f8fafc;
+      border-color: var(--primary-blue);
+      color: var(--primary-blue);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+    }
+
+    /* 메인 컨테이너 */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 28px;
+      padding: 28px 40px;
+      max-width: 1920px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1200px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 왼쪽: 대형 추첨 디스플레이 섹션 */
+    .draw-section {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      padding: 40px;
+      position: relative;
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+      min-height: 580px;
+    }
+
+    /* 배경 장식 원형 글로우 */
+    .glow-circle {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(2, 132, 199, 0.12) 0%, rgba(245, 144, 30, 0.06) 50%, transparent 75%);
+      pointer-events: none;
+      filter: blur(50px);
+      z-index: 1;
+      animation: float-glow 8s ease-in-out infinite alternate;
+    }
+
+    .prize-banner {
+      z-index: 2;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .prize-rank-tag {
+      display: inline-block;
+      font-size: 1.45rem;
+      font-weight: 800;
+      padding: 9px 26px;
+      border-radius: 100px;
+      background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%);
+      color: #ffffff;
+      box-shadow: 0 6px 20px rgba(245, 144, 30, 0.35);
+      margin-bottom: 14px;
+      letter-spacing: 1px;
+    }
+
+    .prize-name-text {
+      font-size: 2.3rem;
+      font-weight: 800;
+      color: var(--primary-navy);
+      text-shadow: 0 2px 10px rgba(2, 132, 199, 0.1);
+      letter-spacing: -0.5px;
+    }
+
+    /* 초대형 번호판 롤링 박스 */
+    .slot-machine-container {
+      z-index: 2;
+      position: relative;
+      width: 100%;
+      max-width: 620px;
+      height: 250px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+      border: 3.5px solid rgba(2, 132, 199, 0.45);
+      border-radius: 36px;
+      box-shadow: 
+        0 14px 40px rgba(2, 132, 199, 0.12),
+        inset 0 2px 10px rgba(2, 132, 199, 0.06);
+      margin: 20px 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .slot-machine-container.is-rolling {
+      border-color: var(--primary-blue);
+      box-shadow: 
+        0 0 60px rgba(2, 132, 199, 0.45),
+        inset 0 0 30px rgba(2, 132, 199, 0.18);
+      transform: scale(1.02);
+    }
+
+    .slot-machine-container.is-winner {
+      border-color: var(--accent-orange);
+      box-shadow: 
+        0 0 80px rgba(245, 144, 30, 0.55),
+        inset 0 0 35px rgba(245, 144, 30, 0.25);
+      animation: winner-pulse-orange 1.2s infinite alternate;
+    }
+
+    .lucky-number-display {
+      font-family: 'Outfit', sans-serif;
+      font-size: 8.5rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      background: linear-gradient(180deg, var(--primary-navy) 20%, var(--primary-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      user-select: none;
+      transition: transform 0.15s ease;
+    }
+
+    .lucky-number-display.winner-text {
+      background: linear-gradient(180deg, var(--accent-orange-dark) 10%, var(--accent-orange) 60%, var(--accent-orange-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .draw-status-message {
+      z-index: 2;
+      margin-top: 20px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge-passed-alert {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #dc2626;
+      padding: 8px 20px;
+      border-radius: 999px;
+      font-size: 1.1rem;
+      animation: shake 0.5s ease-in-out;
+    }
+
+    /* 하단 통계 바 */
+    .stats-bar {
+      z-index: 2;
+      display: flex;
+      gap: 20px;
+      margin-top: 30px;
+      width: 100%;
+      max-width: 620px;
+    }
+
+    .stat-pill {
+      flex: 1;
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      padding: 14px 18px;
+      border-radius: 18px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+    }
+
+    .stat-pill-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .stat-pill-value {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--primary-blue);
+    }
+
+    /* 오른쪽: 현황판 사이드 패널 */
+    .status-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panel-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--glass-shadow);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-main);
+    }
+
+    .panel-badge {
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: rgba(2, 132, 199, 0.08);
+      color: var(--primary-blue);
+      font-weight: 700;
+    }
+
+    /* 등수별 당첨 목록 */
+    .prize-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      max-height: 380px;
+      padding-right: 4px;
+    }
+
+    .prize-card-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 16px;
+      transition: all 0.2s ease;
+    }
+
+    .prize-card-item:hover {
+      border-color: rgba(2, 132, 199, 0.3);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.06);
+    }
+
+    .prize-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .prize-card-rank {
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: var(--accent-orange-dark);
+    }
+
+    .prize-card-progress {
+      font-size: 0.85rem;
+      color: var(--primary-blue);
+      font-weight: 700;
+    }
+
+    .winner-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip-winner {
+      background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-teal) 100%);
+      border: 1px solid rgba(2, 132, 199, 0.4);
+      color: #ffffff;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      font-family: 'Outfit', sans-serif;
+      box-shadow: 0 3px 10px rgba(2, 132, 199, 0.25);
+      animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .chip-placeholder {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      padding: 4px 8px;
+    }
+
+    /* 부재중 패스된 번호 영역 (요청사항: 흐리게 처리) */
+    .passed-numbers-container {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 16px;
+      padding: 14px;
+      min-height: 80px;
+      max-height: 160px;
+      overflow-y: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-content: flex-start;
+    }
+
+    .chip-passed {
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+      color: #94a3b8; /* 흐리게 */
+      text-decoration: line-through; /* 취소선 */
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: 'Outfit', sans-serif;
+      opacity: 0.75;
+      transition: opacity 0.2s;
+    }
+
+    .chip-passed:hover {
+      opacity: 1;
+    }
+
+    .empty-text {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      width: 100%;
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    /* 애니메이션 키프레임 */
+    @keyframes pulse-glow-blue {
+      0%, 100% { opacity: 0.85; }
+      50% { opacity: 1; box-shadow: 0 0 14px var(--primary-blue-glow); }
+    }
+
+    @keyframes float-glow {
+      0% { transform: translate(-30px, -20px) scale(1); }
+      100% { transform: translate(30px, 20px) scale(1.15); }
+    }
+
+    @keyframes winner-pulse-orange {
+      0% { transform: scale(1); box-shadow: 0 0 50px rgba(245, 144, 30, 0.45); }
+      100% { transform: scale(1.02); box-shadow: 0 0 90px rgba(245, 144, 30, 0.8); }
+    }
+
+    @keyframes pop-in {
+      0% { transform: scale(0.4); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    /* 사운드 상태 뱃지 (상태 표시 전용) */
+    .sound-status-badge {
+      background: rgba(2, 132, 199, 0.08);
+      border: 1px solid rgba(2, 132, 199, 0.3);
+      color: var(--primary-blue);
+      padding: 9px 16px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
+      cursor: default;
+    }
+
+    .sound-status-badge.muted {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #dc2626;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.08);
+    }
+
+    .sound-status-badge.standby {
+      background: rgba(245, 144, 30, 0.1);
+      border-color: rgba(245, 144, 30, 0.35);
+      color: var(--accent-orange-dark);
+      box-shadow: 0 2px 8px rgba(245, 144, 30, 0.08);
+    }
+
+    /* 추첨 대기 화면 오버레이 */
+    .standby-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 50% 35%, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.99));
+      backdrop-filter: blur(18px);
+      z-index: 999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .standby-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .standby-card {
+      text-align: center;
+      padding: 56px 80px;
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 36px;
+      box-shadow: 
+        0 24px 60px rgba(15, 23, 42, 0.08), 
+        0 0 70px rgba(2, 132, 199, 0.12);
+      max-width: 1080px;
+      width: 92%;
+      animation: float-soft 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes float-soft {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-10px); }
+    }
+
+    .standby-logo-img {
+      height: 85px;
+      width: auto;
+      object-fit: contain;
+      margin-bottom: 16px;
+    }
+
+    .standby-badge {
+      display: inline-block;
+      padding: 6px 22px;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #0f172a;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .standby-title {
+      font-size: clamp(2.3rem, 4vw, 3.3rem);
+      font-weight: 900;
+      color: #0f172a;
+      margin-bottom: 40px;
+      letter-spacing: -0.5px;
+      word-break: keep-all;
+      line-height: 1.3;
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .standby-brand {
+      display: inline-flex;
+      align-items: baseline;
+      font-weight: 900;
+      margin: 0 4px;
+    }
+
+    @keyframes charBounce {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+      }
+      32% {
+        transform: translateY(-14px) scale(1.32);
+      }
+      48% {
+        transform: translateY(2px) scale(0.95);
+      }
+      68% {
+        transform: translateY(-4px) scale(1.1);
+      }
+      82% {
+        transform: translateY(0) scale(0.98);
+      }
+    }
+
+    @keyframes charWave {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+      }
+      38% {
+        transform: translateY(-5px) scale(1.06);
+      }
+      70% {
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .bounce-char {
+      display: inline-block;
+      transform-origin: center bottom;
+      animation: charWave 2.2s ease-in-out infinite;
+      animation-delay: var(--d, 0s);
+      will-change: transform;
+    }
+
+    .bounce-char.pop-strong {
+      animation: charBounce 2.2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+      animation-delay: var(--d, 0s);
+      filter: drop-shadow(0 3px 8px rgba(245, 144, 30, 0.45));
+    }
+
+    .standby-icon-box {
+      font-size: 4rem;
+      margin-bottom: 36px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .standby-main-text {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 20px;
+      line-height: 1.4;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .standby-sub-text {
+      font-size: 1.25rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+      margin-bottom: 0;
+    }
+
+    .standby-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
+      border-radius: 999px;
+      background: rgba(245, 144, 30, 0.1);
+      border: 1px solid rgba(245, 144, 30, 0.4);
+      color: var(--accent-orange-dark);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .standby-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-orange);
+      animation: pulse-dot 1.5s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.3); }
+    }
+
+    /* 스크롤바 커스텀 */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(203, 213, 225, 0.8);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 추첨 대기 화면 오버레이 (관리자가 추첨 시작 전까지 화면을 덮고 BGM 차단) -->
+  <div id="standbyOverlay" class="standby-overlay">
+    <div class="standby-card">
+      <h2 class="standby-title">
+        <span class="text-black">2026</span>
+        <span class="standby-brand">
+          <span class="c-teal bounce-char" style="--d: 0s;">서</span><span class="c-teal bounce-char" style="--d: 0.12s;">울</span><span class="c-orange bounce-char pop-strong" style="--d: 0.24s;">청</span><span class="c-teal bounce-char" style="--d: 0.36s;">년</span><span class="c-orange bounce-char pop-strong" style="--d: 0.48s;">정</span><span class="c-teal bounce-char" style="--d: 0.60s;">책</span><span class="c-orange bounce-char pop-strong" style="--d: 0.72s;">네</span><span class="c-teal bounce-char" style="--d: 0.84s;">트</span><span class="c-teal bounce-char" style="--d: 0.96s;">워</span><span class="c-teal bounce-char" style="--d: 1.08s;">크</span>
+        </span>
+        <span class="text-black">총회</span>
+      </h2>
+      <div class="standby-icon-box">
+        <span>✨</span>
+        <span>🎁</span>
+        <span>✨</span>
+      </div>
+      <div class="standby-main-text">잠시 후 현장 추첨이 시작됩니다!</div>
+      <div class="standby-sub-text">사회자의 안내에 귀 기울여 주세요. 곧 당첨의 주인공을 뽑습니다 ✨</div>
+    </div>
+  </div>
+
+  <!-- 백그라운드 유튜브 오디오 플레이어 (화면 우측하단 2px 극소 배치하여 브라우저 백그라운드 미디어 차단 방지) -->
+  <div id="ytPlayerWrapper" style="position: fixed; bottom: 0; right: 0; width: 2px; height: 2px; opacity: 0.01; pointer-events: none; z-index: -999; overflow: hidden;" aria-hidden="true">
+    <div id="youtubePlayer"></div>
+  </div>
+
+  <!-- 헤더 -->
+  <header>
+    <div class="brand">
+      <h1 class="title" id="pageTitle">
+        <span class="text-black">2026</span> <span class="brand-net"><span class="c-teal">서울</span><span class="c-orange">청</span><span class="c-teal">년</span><span class="c-orange">정</span><span class="c-teal">책</span><span class="c-orange">네</span><span class="c-teal">트워크</span></span> <span class="text-black">총회 현장 추첨</span>
+      </h1>
+    </div>
+    <div class="header-controls">
+      <div class="sound-status-badge" id="soundStatusBadge" title="사운드 설정은 관리자 페이지에서 원격 제어됩니다">
+        <span id="soundIcon">🔊</span> <span id="soundText">사운드 ON</span>
+      </div>
+      <button class="btn-icon" onclick="toggleFullscreen()">
+        ⛶ 전체 화면
+      </button>
+    </div>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main>
+    <!-- 왼쪽: 추첨 대형 디스플레이 -->
+    <section class="draw-section">
+      <div class="glow-circle"></div>
+
+      <!-- 상단 등수/상품 배너 -->
+      <div class="prize-banner">
+        <div class="prize-rank-tag" id="currentPrizeRank">추첨 준비 중</div>
+        <div class="prize-name-text" id="currentPrizeName">관리자 진행 대기 중입니다</div>
+      </div>
+
+      <!-- 롤링 슬롯머신 박스 -->
+      <div class="slot-machine-container" id="slotBox">
+        <div class="lucky-number-display" id="luckyNumberDisplay">???</div>
+      </div>
+
+      <!-- 추첨 상태 안내 문구 -->
+      <div class="draw-status-message" id="drawStatusMsg">
+        잠시 후 추첨이 시작됩니다! 행운을 빕니다 ✨
+      </div>
+
+      <!-- 통계 바 -->
+      <div class="stats-bar">
+        <div class="stat-pill">
+          <div class="stat-pill-label">전체 번호 범위</div>
+          <div class="stat-pill-value" id="statRange">1 ~ 200</div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-pill-label">남은 추첨 가능 티켓</div>
+          <div class="stat-pill-value" id="statRemaining">-</div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-pill-label">총 당첨 완료</div>
+          <div class="stat-pill-value" id="statConfirmed">-</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 오른쪽: 현황판 사이드 패널 -->
+    <aside class="status-panel">
+      <!-- 등수별 당첨자 명단 -->
+      <div class="panel-card" style="flex: 1;">
+        <div class="panel-title">
+          <span>🏆 등수별 당첨 현황</span>
+          <span class="panel-badge" id="totalPrizesCount">0명 완료</span>
+        </div>
+        <div class="prize-list" id="prizeListContainer">
+          <!-- JS로 동적 생성 -->
+        </div>
+      </div>
+
+      <!-- 부재중 패스 번호 현황판 -->
+      <div class="panel-card" style="height: 230px;">
+        <div class="panel-title">
+          <span style="color: var(--text-muted);">⏭️ 부재중 패스 번호</span>
+          <span class="panel-badge" id="passedCountBadge" style="background:#f1f5f9; color:var(--text-muted);">0건</span>
+        </div>
+        <div class="passed-numbers-container" id="passedNumbersList">
+          <div class="empty-text">패스된 번호가 없습니다</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // --- YouTube IFrame BGM 플레이어 (무한 반복) ---
+    let ytPlayer = null;
+    let currentVideoId = 'ujCh9JIxCeA';
+    let isYtReady = false;
+
+    function extractYouTubeId(url) {
+      if (!url) return 'ujCh9JIxCeA';
+      const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+      return match ? match[1] : (url.length === 11 ? url : 'ujCh9JIxCeA');
+    }
+
+    window.onYouTubeIframeAPIReady = function() {
+      isYtReady = true;
+      initYouTubePlayer(currentVideoId);
+    };
+
+    // YouTube API가 이미 비동기 로드되었을 경우 즉시 초기화
+    if (window.YT && window.YT.Player) {
+      isYtReady = true;
+      initYouTubePlayer(currentVideoId);
+    }
+
+    let bgmCheckInterval = null;
+
+    let isLotteryStarted = false; // 관리자가 추첨 시작 버튼을 누르기 전까지 false (대기 화면 & BGM OFF)
+
+    function initYouTubePlayer(videoId) {
+      currentVideoId = videoId;
+      if (!window.YT || !window.YT.Player) {
+        setTimeout(() => initYouTubePlayer(videoId), 150);
+        return;
+      }
+      try {
+        if (ytPlayer && ytPlayer.destroy) {
+          try { ytPlayer.destroy(); } catch (e) {}
+        }
+        ytPlayer = new YT.Player('youtubePlayer', {
+          height: '100',
+          width: '100',
+          videoId: videoId,
+          playerVars: {
+            autoplay: 0,
+            loop: 1,
+            playlist: videoId, // 무한 반복을 위해 playlist에 videoId 지정 필수
+            controls: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            enablejsapi: 1,
+            origin: window.location.origin
+          },
+          events: {
+            onReady: (event) => {
+              isYtReady = true;
+              try {
+                const iframe = event.target.getIframe();
+                if (iframe) {
+                  iframe.setAttribute('allow', 'autoplay; encrypted-media');
+                }
+              } catch (e) {}
+
+              event.target.setVolume(30);
+              // 추첨이 시작되기 전까지는 BGM을 틀지 않음
+              if (isLotteryStarted && soundEnabled) {
+                forceStartBgm();
+              } else {
+                event.target.pauseVideo();
+                event.target.mute();
+                updateSoundStatusBadge(false, true);
+              }
+            },
+            onStateChange: (event) => {
+              // 영상 종료 시 즉시 다시 재생 (무한 반복 보장)
+              if (event.data === YT.PlayerState.ENDED) {
+                if (isLotteryStarted) event.target.playVideo();
+              } else if (event.data === YT.PlayerState.PLAYING) {
+                // 재생 시작 시 음소거 해제 보장
+                if (isLotteryStarted && soundEnabled) {
+                  try { event.target.unMute(); } catch (e) {}
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('YouTube 플레이어 초기화 실패:', err);
+      }
+    }
+
+    // BGM 강제 재생 및 사운드 활성화 함수
+    function forceStartBgm() {
+      if (!isLotteryStarted) return;
+      if (!ytPlayer) return;
+      try {
+        ytPlayer.setVolume(normalBgmVolume);
+        if (soundEnabled) {
+          ytPlayer.unMute();
+        }
+        ytPlayer.playVideo();
+      } catch (e) {}
+
+      // 브라우저의 정책으로 인해 재생이 지연되거나 대기 중일 경우 반복 점검
+      if (!bgmCheckInterval) {
+        let attempts = 0;
+        bgmCheckInterval = setInterval(() => {
+          attempts++;
+          if (!isLotteryStarted) {
+            clearInterval(bgmCheckInterval);
+            bgmCheckInterval = null;
+            return;
+          }
+          if (!ytPlayer || !ytPlayer.getPlayerState) return;
+          const state = ytPlayer.getPlayerState();
+          if (state !== 1) { // 1: PLAYING
+            try {
+              ytPlayer.playVideo();
+              if (soundEnabled) ytPlayer.unMute();
+            } catch (e) {}
+          } else {
+            if (soundEnabled) {
+              try { ytPlayer.unMute(); } catch (e) {}
+            }
+            if (attempts > 5) {
+              clearInterval(bgmCheckInterval);
+              bgmCheckInterval = null;
+            }
+          }
+          if (attempts > 20) {
+            clearInterval(bgmCheckInterval);
+            bgmCheckInterval = null;
+          }
+        }, 400);
+      }
+    }
+
+    // 추첨 세션(대기 vs 진행) 상태 전환 함수
+    function setLotterySessionState(started) {
+      isLotteryStarted = Boolean(started);
+      const overlay = document.getElementById('standbyOverlay');
+      if (isLotteryStarted) {
+        if (overlay) overlay.classList.add('hidden');
+        updateSoundStatusBadge(true);
+        forceStartBgm();
+      } else {
+        if (overlay) overlay.classList.remove('hidden');
+        updateSoundStatusBadge(false, true);
+        if (ytPlayer && ytPlayer.pauseVideo) {
+          try { ytPlayer.pauseVideo(); ytPlayer.mute(); } catch (e) {}
+        }
+      }
+    }
+
+    function toggleYtWidget() {
+      const widget = document.getElementById('ytBgmWidget');
+      const btn = document.getElementById('ytMinBtn');
+      if (!widget || !btn) return;
+      widget.classList.toggle('minimized');
+      btn.textContent = widget.classList.contains('minimized') ? '+' : '−';
+    }
+
+    // --- BGM 오디오 덕킹(Audio Ducking) 효과 ---
+    // 기본 BGM 30%, 롤링 시 10%, 팡파레/효과음 시 5%로 줄였다가 부드럽게 복원
+    let normalBgmVolume = 30; // 기본 BGM 볼륨 30%
+    let isDucking = false;
+    let duckRestoreTimer = null;
+    let duckFadeInterval = null;
+
+    function duckBgm(targetVol = 10, durationMs = 3800) {
+      if (!ytPlayer || !ytPlayer.setVolume) return;
+      if (!soundEnabled || !isLotteryStarted) return;
+
+      isDucking = true;
+      if (duckRestoreTimer) clearTimeout(duckRestoreTimer);
+      if (duckFadeInterval) clearInterval(duckFadeInterval);
+
+      try {
+        ytPlayer.setVolume(targetVol);
+      } catch (e) {}
+
+      // durationMs 후 원래 볼륨(30%)으로 부드럽게 Fade-in 복원
+      duckRestoreTimer = setTimeout(() => {
+        fadeRestoreBgm(targetVol);
+      }, durationMs);
+    }
+
+    function fadeRestoreBgm(startVol = 5) {
+      if (!ytPlayer || !ytPlayer.setVolume) return;
+      if (!soundEnabled || !isLotteryStarted) return;
+
+      if (duckFadeInterval) clearInterval(duckFadeInterval);
+
+      let currentVol = startVol;
+      try {
+        currentVol = ytPlayer.getVolume ? ytPlayer.getVolume() : startVol;
+      } catch (e) {}
+
+      duckFadeInterval = setInterval(() => {
+        currentVol += 3;
+        if (currentVol >= normalBgmVolume) {
+          currentVol = normalBgmVolume;
+          clearInterval(duckFadeInterval);
+          duckFadeInterval = null;
+          isDucking = false;
+        }
+        try {
+          ytPlayer.setVolume(currentVol);
+        } catch (e) {}
+      }, 50);
+    }
+
+    // --- Web Audio API 사운드 신디사이저 (풍성하고 웅장한 효과음) ---
+    let soundEnabled = true; // 소리 기본 ON
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // 헤더 사운드 상태 뱃지 업데이트 (사운드 제어는 admin에서만 수행)
+    function updateSoundStatusBadge(enabled, isStandby = false) {
+      soundEnabled = enabled;
+      const badge = document.getElementById('soundStatusBadge');
+      const icon = document.getElementById('soundIcon');
+      const text = document.getElementById('soundText');
+      if (!badge || !icon || !text) return;
+
+      badge.classList.remove('muted', 'standby');
+      if (isStandby || !isLotteryStarted) {
+        badge.classList.add('standby');
+        icon.textContent = '⏳';
+        text.textContent = '추첨 대기 중 (BGM OFF)';
+      } else if (soundEnabled) {
+        icon.textContent = '🔊';
+        text.textContent = '사운드 ON';
+      } else {
+        badge.classList.add('muted');
+        icon.textContent = '🔇';
+        text.textContent = '사운드 OFF';
+      }
+    }
+
+    // 접속 즉시 오디오 초기화 및 unMute 시도
+    function tryInitAudio() {
+      try {
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume();
+        }
+      } catch (e) {}
+
+      forceStartBgm();
+    }
+
+    // 브라우저의 오디오 자동재생 보안 정책을 우회하여 마우스 이동, 클릭, 키보드, 탭 포커스 등 첫 신호 발생 즉시 소리 100% 보장
+    const instantAudioTrigger = () => {
+      tryInitAudio();
+      ['pointerdown', 'mousedown', 'mousemove', 'wheel', 'keydown', 'touchstart', 'focus', 'click'].forEach(evt => {
+        window.removeEventListener(evt, instantAudioTrigger);
+      });
+    };
+    ['pointerdown', 'mousedown', 'mousemove', 'wheel', 'keydown', 'touchstart', 'focus', 'click'].forEach(evt => {
+      window.addEventListener(evt, instantAudioTrigger, { once: true, passive: true });
+    });
+
+    // 사운드 정상 확인용 경쾌한 징글 ("띠링~")
+    function playTestJingle() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        [523.25, 659.25, 783.99].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+          gain.gain.setValueAtTime(0.35, now + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.1);
+          osc.stop(now + idx * 0.1 + 0.35);
+        });
+      } catch (e) {
+        console.warn('오디오 재생 실패:', e);
+      }
+    }
+
+    // 롤링 틱 사운드 (선명하고 긴장감 넘치는 슬롯머신 틱!)
+    function playTickSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(500 + Math.random() * 300, now);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.06);
+      } catch (e) {}
+    }
+
+    // 당첨 축하 팡파레 멜로디 (화음과 웅장한 트럼펫 사운드)
+    function playWinnerSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        // 멜로디 시퀀스: 솔(392) -> 도(523.25) -> 미(659.25) -> 솔(783.99) -> 높은도(1046.5)
+        const fanfareNotes = [
+          { freq: 392.00, time: 0.00, dur: 0.18, vol: 0.4 }, // G4
+          { freq: 523.25, time: 0.18, dur: 0.18, vol: 0.4 }, // C5
+          { freq: 659.25, time: 0.36, dur: 0.22, vol: 0.4 }, // E5
+          { freq: 783.99, time: 0.58, dur: 0.35, vol: 0.5 }, // G5
+          { freq: 1046.5, time: 0.95, dur: 1.20, vol: 0.55 } // C6 (피날레 롱톤)
+        ];
+
+        fanfareNotes.forEach(note => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(note.freq, now + note.time);
+          gain.gain.setValueAtTime(note.vol, now + note.time);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + note.time + note.dur);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + note.time);
+          osc.stop(now + note.time + note.dur);
+        });
+
+        // 피날레 화음 (풍성한 베이스 및 하모니)
+        const chordNotes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+        chordNotes.forEach(freq => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + 0.95);
+          gain.gain.setValueAtTime(0.25, now + 0.95);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 2.1);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + 0.95);
+          osc.stop(now + 2.1);
+        });
+      } catch (e) {
+        console.warn('팡파레 재생 실패:', e);
+      }
+    }
+
+    // 부재중 패스 사운드 (아쉬운 띠-로-리)
+    function playPassSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const passNotes = [
+          { freq: 440, time: 0.0, dur: 0.2 }, // A4
+          { freq: 392, time: 0.2, dur: 0.2 }, // G4
+          { freq: 330, time: 0.4, dur: 0.4 }  // E4
+        ];
+        passNotes.forEach(n => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(n.freq, now + n.time);
+          gain.gain.setValueAtTime(0.3, now + n.time);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + n.time + n.dur);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + n.time);
+          osc.stop(now + n.time + n.dur);
+        });
+      } catch (e) {}
+    }
+
+    // --- 화려한 폭죽 애니메이션 (Confetti - 청색 & 주황색 브랜드 컬러 테마) ---
+    function triggerCelebrationConfetti() {
+      const count = 220;
+      const defaults = { 
+        origin: { y: 0.7 },
+        colors: ['#0284c7', '#f5901e', '#1797a6', '#ea580c', '#38bdf8', '#fbbf24', '#ffffff']
+      };
+
+      function fire(particleRatio, opts) {
+        confetti(Object.assign({}, defaults, opts, {
+          particleCount: Math.floor(count * particleRatio)
+        }));
+      }
+
+      fire(0.25, { spread: 26, startVelocity: 55 });
+      fire(0.2, { spread: 60 });
+      fire(0.35, { spread: 100, decay: 0.91, scalar: 1.2 });
+      fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92 });
+      fire(0.1, { spread: 120, startVelocity: 45 });
+    }
+
+    // --- 전체 화면 토글 ---
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => alert(err.message));
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+
+    // --- 롤링 애니메이션 제어 변수 ---
+    let rollingInterval = null;
+    let isCurrentlyRolling = false;
+    let latestTargetNumber = null;
+
+    function startRollingEffect(targetNum, minNum = 1, maxNum = 200) {
+      if (isCurrentlyRolling) clearInterval(rollingInterval);
+      isCurrentlyRolling = true;
+      latestTargetNumber = targetNum;
+
+      // 롤링 시작 시 BGM 크게 줄이기 (10%로 축소하여 긴장감 & 틱 효과음 강조)
+      duckBgm(10, 7500);
+
+      const slotBox = document.getElementById('slotBox');
+      const numDisplay = document.getElementById('luckyNumberDisplay');
+      const statusMsg = document.getElementById('drawStatusMsg');
+
+      slotBox.className = 'slot-machine-container is-rolling';
+      numDisplay.className = 'lucky-number-display';
+      statusMsg.innerHTML = '<span style="color: var(--primary-cyan); font-size:1.5rem;">🎲 두근두근 추첨 번호가 돌아가고 있습니다...</span>';
+
+      const durationMs = 3800; // 3.8초 롤링
+      const startTime = Date.now();
+
+      rollingInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        // 랜덤 번호 빠르게 교체
+        const rand = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+        numDisplay.textContent = rand;
+        playTickSound();
+
+        if (elapsed >= durationMs) {
+          clearInterval(rollingInterval);
+          isCurrentlyRolling = false;
+          // 최종 당첨 번호 안착! BGM을 5%로 극소화하여 팡파레 효과음 극대화 후 복원
+          duckBgm(5, 3800);
+          numDisplay.textContent = targetNum;
+          slotBox.className = 'slot-machine-container is-winner';
+          numDisplay.className = 'lucky-number-display winner-text';
+          statusMsg.innerHTML = `🎉 당첨 번호 <strong style="color:var(--accent-gold); font-size:1.8rem; margin: 0 8px;">#${targetNum}</strong> 번이 나왔습니다! 호명 중입니다!`;
+          playWinnerSound();
+          triggerCelebrationConfetti();
+        }
+      }, 70);
+    }
+
+    // --- 상태 렌더링 함수 ---
+    function renderState(state) {
+      if (!state) return;
+      const cfg = state.config;
+
+      // 0. 유튜브 BGM URL 동기화
+      if (cfg && cfg.bgm_youtube_url) {
+        const newId = extractYouTubeId(cfg.bgm_youtube_url);
+        if (newId && newId !== currentVideoId) {
+          currentVideoId = newId;
+          if (ytPlayer && ytPlayer.loadVideoById) {
+            ytPlayer.loadVideoById(newId);
+          } else if (isYtReady) {
+            initYouTubePlayer(newId);
+          }
+        }
+      }
+
+      // 1. 헤더/통계 갱신
+      document.getElementById('statRange').textContent = `${cfg.min_number} ~ ${cfg.max_number}`;
+      document.getElementById('statRemaining').textContent = `${state.remaining_pool_count}명`;
+      
+      const totalConfirmed = state.prize_status.reduce((sum, p) => sum + p.confirmed_count, 0);
+      const totalTargets = state.prize_status.reduce((sum, p) => sum + p.target_count, 0);
+      document.getElementById('statConfirmed').textContent = `${totalConfirmed} / ${totalTargets}명`;
+      document.getElementById('totalPrizesCount').textContent = `${totalConfirmed}명 확정`;
+
+      // 2. 등수별 현황 카드 목록 렌더링
+      const prizeContainer = document.getElementById('prizeListContainer');
+      prizeContainer.innerHTML = '';
+
+      state.prize_status.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'prize-card-item';
+        
+        let chipsHtml = '';
+        if (p.confirmed_numbers && p.confirmed_numbers.length > 0) {
+          chipsHtml = p.confirmed_numbers.map(n => `<span class="chip-winner">#${n}</span>`).join('');
+        } else {
+          chipsHtml = '<span class="chip-placeholder">아직 당첨자 없음</span>';
+        }
+
+        card.innerHTML = `
+          <div class="prize-card-header">
+            <div>
+              <span class="prize-card-rank">${p.rank}</span>
+              <span style="font-size:0.9rem; color:#64748b; font-weight:600; margin-left:8px;">${p.name || ''}</span>
+            </div>
+            <div class="prize-card-progress">${p.confirmed_count} / ${p.target_count}명</div>
+          </div>
+          <div class="winner-chips">${chipsHtml}</div>
+        `;
+        prizeContainer.appendChild(card);
+      });
+
+      // 3. 부재중 패스된 번호 현황 렌더링 (요청사항: 흐리게/취소선)
+      const passedContainer = document.getElementById('passedNumbersList');
+      const passedCountBadge = document.getElementById('passedCountBadge');
+      const passedItems = state.passed_numbers || [];
+
+      passedCountBadge.textContent = `${passedItems.length}건`;
+
+      if (passedItems.length === 0) {
+        passedContainer.innerHTML = '<div class="empty-text">패스된 번호가 없습니다</div>';
+      } else {
+        passedContainer.innerHTML = passedItems.map(item => `
+          <span class="chip-passed" title="${item.prize_rank} 추첨 중 부재">#${item.drawn_number}</span>
+        `).join('');
+      }
+
+      // 4. 진행 중인 추첨이 없는데 롤링 중도 아닌 경우 배너 초기화/유지
+      if (!isCurrentlyRolling && !state.current_pending_draw) {
+        const slotBox = document.getElementById('slotBox');
+        const numDisplay = document.getElementById('luckyNumberDisplay');
+        const statusMsg = document.getElementById('drawStatusMsg');
+
+        // 아직 완료 안 된 첫 번째 등수 찾기
+        const nextPrize = state.prize_status.find(p => !p.is_completed);
+        if (nextPrize) {
+          document.getElementById('currentPrizeRank').textContent = nextPrize.rank;
+          document.getElementById('currentPrizeName').textContent = nextPrize.name || '추첨 대기';
+        } else {
+          document.getElementById('currentPrizeRank').textContent = '모든 추첨 완료';
+          document.getElementById('currentPrizeName').textContent = '축하합니다! 모든 현장 추첨이 종료되었습니다.';
+        }
+      }
+    }
+
+    // --- WebSocket 실시간 동기화 ---
+    let ws = null;
+    function connectWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('✅ WebSocket 연결됨');
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        console.log('📩 이벤트 수신:', msg);
+
+        if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED') {
+          if (msg.data && msg.data.is_lottery_started !== undefined) {
+            setLotterySessionState(msg.data.is_lottery_started);
+          }
+          renderState(msg.data);
+        } else if (msg.type === 'LOTTERY_SESSION_STATE') {
+          // 관리자가 [현장 추첨 시작] 또는 [대기 모드] 전환
+          setLotterySessionState(msg.started);
+          if (msg.data) renderState(msg.data);
+        } else if (msg.type === 'DRAW_ROLLING_START') {
+          // 추첨 롤링 시작
+          const item = msg.data;
+          document.getElementById('currentPrizeRank').textContent = item.prize_rank;
+          document.getElementById('currentPrizeName').textContent = item.prize_name || '현장 추첨';
+          startRollingEffect(item.number);
+        } else if (msg.type === 'DRAW_CONFIRMED') {
+          // 관리자가 당첨 확정 클릭!
+          const item = msg.item;
+          const statusMsg = document.getElementById('drawStatusMsg');
+          statusMsg.innerHTML = `🎊 <strong style="color:var(--primary-blue); font-size:1.7rem;">#${item.number}</strong>번 <span style="color:var(--accent-orange-dark); font-weight:800;">[${item.prize_rank}]</span> 당첨이 최종 확정되었습니다!`;
+          duckBgm(5, 3800); // 팡파레 효과음 동안 BGM을 5%로 줄여 축하 사운드 극대화
+          playWinnerSound();
+          triggerCelebrationConfetti();
+          renderState(msg.data);
+        } else if (msg.type === 'DRAW_PASSED') {
+          // 관리자가 부재중 패스 클릭!
+          const item = msg.item;
+          duckBgm(10, 2200); // 패스 알림 효과음 동안 BGM을 10%로 축소
+          playPassSound();
+          const slotBox = document.getElementById('slotBox');
+          const numDisplay = document.getElementById('luckyNumberDisplay');
+          const statusMsg = document.getElementById('drawStatusMsg');
+
+          slotBox.className = 'slot-machine-container';
+          numDisplay.textContent = 'PASS';
+          numDisplay.className = 'lucky-number-display';
+          statusMsg.innerHTML = `<span class="badge-passed-alert">⚠️ #${item.number}번 참석자 부재로 패스 처리되었습니다. 다음 번호를 추첨합니다.</span>`;
+          renderState(msg.data);
+        } else if (msg.type === 'DRAW_RESET') {
+          // 초기화 이벤트: 대기 모드로 되돌리고 BGM 끄기
+          setLotterySessionState(false);
+          document.getElementById('luckyNumberDisplay').textContent = '???';
+          document.getElementById('slotBox').className = 'slot-machine-container';
+          document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 대기 모드로 전환합니다.';
+          renderState(msg.data);
+        } else if (msg.type === 'BGM_CONTROL') {
+          // 관리자 원격 BGM & 사운드 제어 이벤트 (재생, 일시정지, 볼륨, 음소거)
+          try {
+            if (msg.action === 'play') {
+              updateSoundStatusBadge(true);
+              if (ytPlayer && ytPlayer.unMute) {
+                ytPlayer.unMute();
+                ytPlayer.playVideo();
+              }
+            } else if (msg.action === 'pause') {
+              if (ytPlayer && ytPlayer.pauseVideo) {
+                ytPlayer.pauseVideo();
+              }
+            } else if (msg.action === 'mute') {
+              updateSoundStatusBadge(false);
+              if (ytPlayer && ytPlayer.mute) {
+                ytPlayer.mute();
+              }
+            } else if (msg.action === 'unmute') {
+              updateSoundStatusBadge(true);
+              if (ytPlayer && ytPlayer.unMute) {
+                ytPlayer.unMute();
+                ytPlayer.playVideo();
+              }
+            } else if (msg.action === 'set_volume') {
+              normalBgmVolume = msg.volume;
+              if (ytPlayer && ytPlayer.setVolume) {
+                if (!isDucking) {
+                  ytPlayer.setVolume(msg.volume);
+                }
+                if (msg.volume > 0) {
+                  ytPlayer.unMute();
+                  updateSoundStatusBadge(true);
+                } else {
+                  ytPlayer.mute();
+                  updateSoundStatusBadge(false);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('BGM/사운드 원격 제어 실행 오류:', e);
+          }
+        }
+      };
+
+      ws.onclose = () => {
+        console.warn('⚠️ WebSocket 연결 끊김. 2초 후 재연결 시도...');
+        setTimeout(connectWebSocket, 2000);
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket 에러:', err);
+      };
+    }
+
+    // 초기 실행
+    window.addEventListener('DOMContentLoaded', () => {
+      connectWebSocket();
+      updateSoundStatusBadge(false, true); // 관리자가 추첨 시작 버튼을 누르기 전까지 대기 상태
+    });
+  </script>
+</body>
+</html>

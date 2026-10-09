@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 서울청년정책네트워크 총회 현장 추첨 관리자 콘솔</title>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="shortcut icon" href="/logo.png">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* 배경은 현재의 다크 슬레이트 모드 그대로 유지 */
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+
+      /* 브랜드 청록 & 청색 (Brand Blue/Teal) */
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-sky: #38bdf8;
+      --primary-blue-glow: rgba(2, 132, 199, 0.25);
+
+      /* 브랜드 주황색 (Brand Orange) */
+      --accent-orange: #f5901e;
+      --accent-orange-hover: #ea580c;
+      --accent-orange-light: #fb923c;
+      --accent-orange-glow: rgba(245, 144, 30, 0.35);
+
+      /* 보조 상태 컬러 */
+      --success: #0284c7;
+      --success-hover: #0369a1;
+      --warning: #f5901e;
+      --warning-hover: #ea580c;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+
+      /* 텍스트 색상 */
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Pretendard', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 헤더 */
+    header {
+      background: #111827;
+      border-bottom: 1px solid var(--card-border);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo-admin {
+      height: 32px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .badge-admin {
+      background: rgba(2, 132, 199, 0.15);
+      border: 1px solid var(--primary-sky);
+      color: var(--primary-sky);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ffffff; /* 이와 관련없는 글씨들은 하얀색 */
+    }
+
+    .brand-net {
+      font-weight: 800;
+    }
+
+    .c-teal {
+      color: #1797a6; /* 청록색: 서울, 년, 책, 트워크 */
+    }
+
+    .c-orange {
+      color: #f5901e; /* 주황색: 청, 정, 네 */
+    }
+
+    .text-white {
+      color: #ffffff;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .display-link {
+      color: var(--accent-orange);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(245, 144, 30, 0.1);
+      border: 1px solid rgba(245, 144, 30, 0.35);
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .display-link:hover {
+      background: rgba(245, 144, 30, 0.2);
+      border-color: var(--accent-orange);
+      transform: translateY(-1px);
+    }
+
+    /* 탭 메뉴 */
+    .tabs-nav {
+      display: flex;
+      background: #1e293b;
+      border-bottom: 1px solid var(--card-border);
+      padding: 0 24px;
+      gap: 12px;
+    }
+
+    .tab-button {
+      padding: 14px 20px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .tab-button:hover {
+      color: var(--primary-sky);
+    }
+
+    .tab-button.active {
+      color: var(--accent-orange);
+      border-bottom-color: var(--accent-orange);
+    }
+
+    /* 본문 */
+    main {
+      flex: 1;
+      padding: 24px;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* 카드 스타일 */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-main);
+    }
+
+    /* 폼 요소 */
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+
+    input, select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text-main);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent-orange);
+      box-shadow: 0 0 0 3px rgba(245, 144, 30, 0.2);
+    }
+
+    /* 버튼 모음 (청색 및 주황색 위주 테마) */
+    .btn {
+      padding: 14px 24px;
+      border-radius: 12px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* 청색 버튼 */
+    .btn-primary { 
+      background: var(--primary); 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+    }
+    .btn-primary:hover:not(:disabled) { 
+      background: var(--primary-hover); 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.4);
+    }
+
+    /* 주황색 버튼 */
+    .btn-orange {
+      background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-hover) 100%);
+      color: white;
+      box-shadow: 0 4px 14px rgba(245, 144, 30, 0.35);
+    }
+    .btn-orange:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--accent-orange-hover) 0%, #c2410c 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 144, 30, 0.5);
+    }
+
+    .btn-success { 
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+    }
+    .btn-success:hover:not(:disabled) { 
+      background: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%); 
+      transform: translateY(-2px); 
+    }
+
+    .btn-warning { 
+      background: #334155; 
+      color: #cbd5e1; 
+      border: 1px solid #475569;
+    }
+    .btn-warning:hover:not(:disabled) { 
+      background: #475569; 
+      color: white;
+      transform: translateY(-2px); 
+    }
+
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+
+    .btn-secondary { 
+      background: #334155; 
+      color: white; 
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .btn-secondary:hover:not(:disabled) { 
+      background: #475569; 
+    }
+
+    /* 대형 추첨 컨트롤 패널 */
+    .control-box {
+      text-align: center;
+      padding: 30px 20px;
+      background: #111827;
+      border-radius: 20px;
+      border: 2px dashed rgba(2, 132, 199, 0.4);
+      margin-bottom: 24px;
+    }
+
+    .drawn-preview-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 5rem;
+      font-weight: 900;
+      color: var(--primary-sky);
+      text-shadow: 0 0 25px rgba(56, 189, 248, 0.35);
+      margin: 14px 0;
+      min-height: 100px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .drawn-preview-number.empty {
+      color: #475569;
+      text-shadow: none;
+      font-size: 3rem;
+    }
+
+    .action-btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .action-btn-group {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 설정 그리드 */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .prize-setting-row {
+      display: grid;
+      grid-template-columns: 120px 100px 1fr 50px;
+      gap: 10px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    @media (max-width: 600px) {
+      .prize-setting-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* 패스 번호 칩 */
+    .chip-passed-admin {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      text-decoration: line-through;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      display: inline-block;
+      margin: 4px;
+    }
+
+    /* 로그인 모달 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 32px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 비밀번호 인증 모달 -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-box">
+      <h2 style="margin-bottom: 8px;">🔐 관리자 인증</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">행사 관리자 비밀번호를 입력해주세요.</p>
+      <input type="password" id="authInput" placeholder="관리자 비밀번호" style="margin-bottom: 16px; text-align: center;" onkeydown="if(event.key==='Enter') verifyPassword()">
+      <button class="btn btn-orange" style="width: 100%;" onclick="verifyPassword()">접속하기</button>
+      <div id="authErrorMsg" style="color: var(--danger); font-size: 0.85rem; margin-top: 12px; display: none;">비밀번호가 올바르지 않습니다.</div>
+    </div>
+  </div>
+
+  <!-- 헤더 -->
+  <header>
+    <div class="brand">
+      <h1>
+        <span class="text-white">2026</span> <span class="brand-net"><span class="c-teal">서울</span><span class="c-orange">청</span><span class="c-teal">년</span><span class="c-orange">정</span><span class="c-teal">책</span><span class="c-orange">네</span><span class="c-teal">트워크</span></span> <span class="text-white">총회 현장 추첨 관리자 콘솔</span>
+      </h1>
+    </div>
+    <div class="header-right" style="display: flex; align-items: center; gap: 12px;">
+      <!-- 💾 현재 DB 상태 뱃지 -->
+      <div id="dbStatusBadge" style="display: flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; user-select: none;" title="현재 사용 중인 데이터베이스 저장소">
+        <span id="dbStatusDot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+        <span id="dbStatusText">💾 DB 확인 중...</span>
+      </div>
+      <a href="/display" target="_blank" class="display-link">
+        📺 현장 스크린 열기 ↗
+      </a>
+    </div>
+  </header>
+
+  <!-- 탭 네비게이션 -->
+  <nav class="tabs-nav">
+    <button class="tab-button active" onclick="switchTab('drawTab', this)">🎯 추첨 진행</button>
+    <button class="tab-button" onclick="switchTab('configTab', this)">⚙️ 추첨 설정</button>
+    <button class="tab-button" onclick="switchTab('historyTab', this)">📜 추첨 이력 및 초기화</button>
+    <button class="tab-button" onclick="switchTab('soundTab', this)">🎵 음악 & 사운드</button>
+  </nav>
+
+  <!-- 메인 영역 -->
+  <main>
+    <!-- TAB 1: 추첨 진행 컨트롤러 -->
+    <section id="drawTab" class="tab-content active">
+      <!-- 🚀 현장 추첨 공식 시작 / 대기 전환 카드 -->
+      <div id="lotterySessionCard" class="card" style="border-color: rgba(2, 132, 199, 0.45); background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(2, 132, 199, 0.15)); margin-bottom: 20px;">
+        <div class="card-title" style="margin-bottom: 8px;">
+          <span style="display:flex; align-items:center; gap:8px;">
+            <span style="color: var(--primary-sky);">🚀 현장 추첨 세션 제어</span>
+            <span id="sessionStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(245, 144, 30, 0.2); color: #f5901e; font-weight: 700;">대기 상태 (BGM OFF)</span>
+          </span>
+        </div>
+        <p id="sessionStatusDesc" style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 14px; line-height: 1.5;">
+          현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면이며 BGM이 꺼져 있습니다.<br>
+          행사가 시작되면 아래 <strong>[🎉 현장 추첨 시작하기]</strong> 버튼을 눌러 스크린을 활성화하고 배경음악을 켜주세요.
+        </p>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button id="btnStartLotterySession" class="btn btn-orange" style="padding: 12px 28px; font-size: 1.05rem; background: linear-gradient(135deg, #0284c7 0%, #f5901e 100%); border: none; font-weight: 700; box-shadow: 0 4px 16px rgba(245, 144, 30, 0.35);" onclick="toggleLotterySession(true)">
+            🎉 현장 추첨 공식 시작 (대기 화면 해제 & BGM 켜기)
+          </button>
+          <button id="btnPauseLotterySession" class="btn btn-secondary" style="padding: 10px 18px; font-size: 0.88rem; display: none;" onclick="toggleLotterySession(false)">
+            ⏸️ 대기 화면으로 되돌리기 (BGM 끄기)
+          </button>
+        </div>
+      </div>
+
+      <!-- 등수 선택 카드 -->
+      <div class="card">
+        <div class="card-title">
+          <span><span style="color:var(--primary-sky);">1.</span> 추첨할 등수 선택</span>
+          <span style="font-size:0.85rem; color: var(--accent-orange); font-weight: 700;" id="currentRemainInfo">-</span>
+        </div>
+        <select id="prizeSelect" onchange="onPrizeSelectChange()">
+          <!-- 동적 옵션 -->
+        </select>
+      </div>
+
+      <!-- 추첨 액션 박스 -->
+      <div class="control-box">
+        <div style="font-size: 1.1rem; color: var(--primary-sky); font-weight: 600;" id="actionStatusLabel">
+          [번호 뽑기] 버튼을 누르면 현장 스크린에 롤링 애니메이션이 시작됩니다.
+        </div>
+
+        <div class="drawn-preview-number empty" id="drawnPreviewNumber">
+          대기 중
+        </div>
+
+        <div id="targetPrizeBadge" style="font-size: 1.15rem; color: var(--accent-orange); font-weight: 800; margin-bottom: 16px;">
+          -
+        </div>
+
+        <!-- 1단계: 번호 뽑기 버튼 (주황색 메인 버튼) -->
+        <button class="btn btn-orange" id="btnDrawStart" style="font-size: 1.25rem; padding: 18px 40px; width: 100%; max-width: 400px;" onclick="triggerDrawStart()">
+          🎲 번호 뽑기 (추첨 시작)
+        </button>
+
+        <!-- 2단계: 번호 나온 후 확정(청색) 또는 패스 선택 버튼 -->
+        <div class="action-btn-group" id="confirmPassGroup" style="display: none;">
+          <button class="btn btn-blue" id="btnConfirm" onclick="triggerConfirm()">
+            ✅ 당첨 확정
+          </button>
+          <button class="btn btn-secondary" id="btnPass" onclick="triggerPass()">
+            ⏭️ 부재중 패스 (넘어가기)
+          </button>
+        </div>
+      </div>
+
+      <!-- 실시간 간이 현황판 -->
+      <div class="card">
+        <div class="card-title">
+          <span>현재 진행 통계 요약</span>
+          <span style="font-size:0.85rem; color: var(--accent-orange); font-weight: 700;" id="remainingTicketsText">-</span>
+        </div>
+        <div id="simpleSummaryList" style="display:flex; flex-direction:column; gap:8px;">
+          <!-- 동적 목록 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: 추첨 환경 설정 -->
+    <section id="configTab" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span>추첨 번호 범위 설정</span>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>최소 번호 (시작)</label>
+            <input type="number" id="cfgMin" min="1" value="1">
+          </div>
+          <div>
+            <label>최대 번호 (끝)</label>
+            <input type="number" id="cfgMax" min="1" value="200">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>등수 및 당첨 인원 설정</span>
+          <button class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.85rem; border-color: var(--primary); color: var(--primary-sky); background: rgba(2, 132, 199, 0.1);" onclick="addPrizeRow()">+ 등수 추가</button>
+        </div>
+        <div id="prizeSettingRows">
+          <!-- 동적 생성 -->
+        </div>
+        <div style="margin-top: 20px; text-align: right;">
+          <button class="btn btn-orange" onclick="saveConfiguration()">💾 설정 저장하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 추첨 이력 및 초기화 -->
+    <section id="historyTab" class="tab-content">
+      <!-- 💾 현재 DB 저장소 상태 안내 카드 -->
+      <div class="card" style="margin-bottom: 20px; border-color: rgba(56, 189, 248, 0.35); background: rgba(15, 23, 42, 0.9);">
+        <div class="card-title" style="margin-bottom: 8px;">
+          <span style="display:flex; align-items:center; gap:8px;">
+            <span>💾 현재 데이터베이스 저장소</span>
+            <span id="dbInfoCardBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700;">확인 중</span>
+          </span>
+        </div>
+        <div style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;" id="dbInfoCardDesc">
+          데이터베이스 연결 상태를 확인하고 있습니다...
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>🏆 확정된 당첨자 명단</span>
+        </div>
+        <div id="confirmedListAdmin" style="max-height: 200px; overflow-y: auto; font-size: 0.95rem;">
+          <!-- 동적 생성 -->
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span style="color: #f87171;">⏭️ 부재중 패스 번호 목록</span>
+        </div>
+        <div id="passedListAdmin" style="min-height: 60px;">
+          <!-- 동적 생성 -->
+        </div>
+      </div>
+
+      <div class="card" style="border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05);">
+        <div class="card-title" style="color: var(--danger);">
+          <span>⚠️ 위험 구역: 추첨 데이터 초기화</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+          모든 추첨 기록(확정 및 패스)을 삭제하고 처음 상태로 되돌립니다. 행사가 끝났거나 리허설 후 본 행사 시작 전에만 사용하세요.
+        </p>
+        <button class="btn btn-danger" onclick="triggerResetAll()">전체 데이터 초기화</button>
+      </div>
+    </section>
+
+    <!-- TAB 4: 음악 및 음량(사운드) 전용 설정 -->
+    <section id="soundTab" class="tab-content">
+      <!-- 🎵 현장 사운드 & BGM 실시간 원격 제어 카드 -->
+      <div class="card" style="border-color: rgba(2, 132, 199, 0.45); background: rgba(30, 41, 59, 0.95); margin-bottom: 20px;">
+        <div class="card-title" style="margin-bottom: 12px;">
+          <span style="display:flex; align-items:center; gap:8px;">
+            <span style="color: var(--primary-sky);">🎵 현장 사운드 & 배경음악(BGM) 실시간 제어</span>
+            <span id="bgmStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(2, 132, 199, 0.2); color: #38bdf8; font-weight: 700;">🟢 소리 ON</span>
+          </span>
+          <span style="font-size:0.85rem; color: var(--accent-orange); font-weight: 700;" id="bgmVolLabel">볼륨: 30%</span>
+        </div>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px;">
+          송출 화면(Display)의 사운드 ON/OFF, 음량 및 BGM 재생이 실시간으로 원격 동기화됩니다.
+        </p>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
+          <button class="btn btn-primary" style="padding: 10px 20px; font-size: 0.95rem;" onclick="controlBgm('play')">
+            ▶️ 음악 재생
+          </button>
+          <button class="btn btn-secondary" style="padding: 10px 20px; font-size: 0.95rem;" onclick="controlBgm('pause')">
+            ⏸️ 일시 정지
+          </button>
+          <button class="btn btn-secondary" style="padding: 10px 16px; font-size: 0.95rem;" id="btnBgmToggleMute" onclick="toggleBgmMute()">
+            🔇 음소거 (사운드 OFF)
+          </button>
+        </div>
+
+        <!-- 슬라이더 & 빠른 볼륨 조절 프리셋 -->
+        <div style="background: rgba(0, 0, 0, 0.25); padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08);">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <span style="font-size: 1rem;">🔈</span>
+            <input type="range" id="bgmVolumeSlider" min="0" max="100" value="30" style="flex:1; cursor: pointer; accent-color: var(--accent-orange);" oninput="onBgmVolumeChange(this.value)">
+            <span style="font-size: 1rem;">🔊</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
+            <span style="font-size: 0.78rem; color: #94a3b8; margin-right: 4px;">빠른 조절:</span>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(15)">15% (작게)</button>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem; border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245, 144, 30, 0.1);" onclick="setBgmVolumePreset(30)">30% (권장 기본)</button>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(50)">50% (보통)</button>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(70)">70% (크게)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🎶 배경음악 (YouTube BGM) 음원 설정 카드 -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">
+          <span>🎶 배경음악 (YouTube BGM) 음원 설정</span>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 6px; font-size: 0.9rem; color: #cbd5e1;">YouTube 영상 링크 (현장 스크린에서 무한 반복 재생됩니다)</label>
+          <input type="text" id="cfgYoutube" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=ujCh9JIxCeA" style="width: 100%;">
+          <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 6px;">
+            기본 추천: <a href="https://www.youtube.com/watch?v=ujCh9JIxCeA" target="_blank" style="color: var(--primary-sky); text-decoration: underline;">Lucky Draw Music (행사 추첨 긴장감 & 축하 BGM)</a>
+          </small>
+        </div>
+        <div style="text-align: right;">
+          <button class="btn btn-orange" onclick="saveBgmOnly()">💾 BGM 음원 링크 저장하기</button>
+        </div>
+      </div>
+
+      <!-- 🎚️ 사운드 연출 안내 카드 (Audio Ducking) -->
+      <div class="card" style="border-color: rgba(56, 189, 248, 0.3); background: rgba(15, 23, 42, 0.8);">
+        <div class="card-title" style="margin-bottom: 8px;">
+          <span>🎚️ 스마트 오디오 덕킹(Audio Ducking) 연출 안내</span>
+          <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-weight: 700;">자동 적용 중</span>
+        </div>
+        <ul style="font-size: 0.85rem; color: #94a3b8; line-height: 1.6; padding-left: 20px;">
+          <li><strong>기본 배경음악:</strong> 평상시 볼륨 <strong>30%</strong>로 은은하게 재생됩니다.</li>
+          <li><strong>추첨 롤링 시:</strong> 번호가 회전하는 동안 BGM이 <strong>10%</strong>로 자동 축소되어 긴장감 틱 효과음이 또렷이 들립니다.</li>
+          <li><strong>당첨 안착 & 팡파레 시:</strong> 당첨 번호가 확정되는 순간 BGM이 <strong>5%</strong>로 극소화되어 웅장한 축하 팡파레가 극대화됩니다.</li>
+          <li><strong>종료 후:</strong> 팡파레가 끝나면 부드럽게 원래 볼륨(30%)으로 자연스럽게 페이드인 복원됩니다.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let adminPassword = sessionStorage.getItem('admin_pwd') || '';
+    let currentState = null;
+
+    // --- 비밀번호 인증 ---
+    async function verifyPassword() {
+      const input = document.getElementById('authInput').value;
+      const errorMsg = document.getElementById('authErrorMsg');
+      try {
+        const res = await fetch('/api/admin/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: input })
+        });
+        if (res.ok) {
+          adminPassword = input;
+          sessionStorage.setItem('admin_pwd', adminPassword);
+          document.getElementById('authModal').style.display = 'none';
+          initWebSocket();
+        } else {
+          errorMsg.style.display = 'block';
+        }
+      } catch (err) {
+        alert('서버 연결 실패');
+      }
+    }
+
+    if (adminPassword) {
+      // 이미 비밀번호가 있으면 자동 검증 시도
+      fetch('/api/admin/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword })
+      }).then(res => {
+        if (res.ok) {
+          document.getElementById('authModal').style.display = 'none';
+          initWebSocket();
+        } else {
+          sessionStorage.removeItem('admin_pwd');
+        }
+      });
+    }
+
+    // --- 탭 전환 ---
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    // --- WebSocket 실시간 연동 ---
+    let ws = null;
+    function initWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET') {
+          currentState = msg.data;
+          renderAdminState(msg.data);
+        } else if (msg.type === 'DRAW_ROLLING_START') {
+          handleDrawRollingStart(msg.data);
+        }
+      };
+
+      ws.onclose = () => setTimeout(initWebSocket, 2000);
+    }
+
+    // --- 상태 렌더링 ---
+    function renderAdminState(state) {
+      if (!state) return;
+      const cfg = state.config;
+
+      // 0. DB 저장소 상태 배지 및 정보 카드 동기화
+      const dbInfo = state.db_info || { type: 'SQLITE', name: '로컬 SQLite (lottery.db)', details: '' };
+      const dbBadge = document.getElementById('dbStatusBadge');
+      const dbDot = document.getElementById('dbStatusDot');
+      const dbText = document.getElementById('dbStatusText');
+      const dbCardBadge = document.getElementById('dbInfoCardBadge');
+      const dbCardDesc = document.getElementById('dbInfoCardDesc');
+
+      if (dbInfo.type === 'SUPABASE') {
+        if (dbBadge) {
+          dbBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+          dbBadge.style.borderColor = 'rgba(52, 211, 153, 0.4)';
+          dbBadge.style.color = '#34d399';
+        }
+        if (dbDot) dbDot.style.background = '#34d399';
+        if (dbText) dbText.textContent = '🟢 Supabase 연동됨';
+        if (dbCardBadge) {
+          dbCardBadge.textContent = 'Supabase 클라우드';
+          dbCardBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+          dbCardBadge.style.color = '#34d399';
+        }
+        if (dbCardDesc) {
+          dbCardDesc.innerHTML = `현재 <strong>Supabase 클라우드 DB</strong> (테이블: <code>draw_history</code>)에 추첨 데이터가 실시간 저장되고 있습니다. (총 ${(state.history || []).length}건 기록됨)`;
+        }
+      } else {
+        if (dbBadge) {
+          dbBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+          dbBadge.style.borderColor = 'rgba(251, 191, 36, 0.4)';
+          dbBadge.style.color = '#fbbf24';
+        }
+        if (dbDot) dbDot.style.background = '#fbbf24';
+        if (dbText) dbText.textContent = '🟡 로컬 SQLite 사용 중';
+        if (dbCardBadge) {
+          dbCardBadge.textContent = '로컬 SQLite (lottery.db)';
+          dbCardBadge.style.background = 'rgba(245, 158, 11, 0.2)';
+          dbCardBadge.style.color = '#fbbf24';
+        }
+        if (dbCardDesc) {
+          dbCardDesc.innerHTML = `현재 <strong>로컬 파일 DB (<code>lottery.db</code>)</strong>에 추첨 데이터가 안전하게 영구 저장되고 있습니다. (총 ${(state.history || []).length}건 기록됨)<br><small style="color:#94a3b8;">* Supabase 설정이 비어있거나 접속이 불가할 때 로컬 SQLite 모드로 자동 안전 전환됩니다.</small>`;
+        }
+      }
+
+      // 추첨 세션 상태(대기 vs 시작) UI 갱신
+      updateSessionUI(Boolean(state.is_lottery_started));
+
+      // 1. 추첨 진행 탭 등수 셀렉트 박스 갱신
+      const prizeSelect = document.getElementById('prizeSelect');
+      const prevVal = prizeSelect.value;
+      prizeSelect.innerHTML = '';
+      
+      state.prize_status.forEach((p, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${p.rank} (${p.name || '경품'}) - [${p.confirmed_count}/${p.target_count}명] ${p.is_completed ? '✅ 완료' : ''}`;
+        prizeSelect.appendChild(opt);
+      });
+      if (prevVal && prizeSelect.options[prevVal]) {
+        prizeSelect.value = prevVal;
+      }
+      onPrizeSelectChange();
+
+      // 2. 간이 요약
+      document.getElementById('remainingTicketsText').textContent = `남은 번호: ${state.remaining_pool_count}개`;
+      const summaryContainer = document.getElementById('simpleSummaryList');
+      summaryContainer.innerHTML = state.prize_status.map(p => `
+        <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:0.9rem;">
+          <span><strong>${p.rank}</strong> (${p.name || ''})</span>
+          <span style="color:${p.is_completed ? '#10b981' : '#f59e0b'}; font-weight:700;">${p.confirmed_count} / ${p.target_count}명</span>
+        </div>
+      `).join('');
+
+      // 3. 진행 중인 추첨 번호가 있는 경우 UI 복원
+      if (state.current_pending_draw) {
+        handleDrawRollingStart(state.current_pending_draw);
+      } else {
+        resetDrawControlsToIdle();
+      }
+
+      // 4. 설정 탭 폼 채우기
+      document.getElementById('cfgMin').value = cfg.min_number;
+      document.getElementById('cfgMax').value = cfg.max_number;
+      if (document.getElementById('cfgYoutube')) {
+        document.getElementById('cfgYoutube').value = cfg.bgm_youtube_url || 'https://www.youtube.com/watch?v=ujCh9JIxCeA';
+      }
+      renderPrizeRows(cfg.prizes);
+
+      // 5. 이력 탭 채우기
+      const confirmedAdmin = document.getElementById('confirmedListAdmin');
+      const confirmedItems = (state.history || []).filter(h => h.status === 'CONFIRMED');
+      if (confirmedItems.length === 0) {
+        confirmedAdmin.innerHTML = '<div style="color:var(--text-muted); padding:10px;">당첨 확정 내역이 없습니다.</div>';
+      } else {
+        confirmedAdmin.innerHTML = confirmedItems.map(h => `
+          <div style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between;">
+            <span><strong>[${h.prize_rank}]</strong> ${h.prize_name || ''}</span>
+            <span style="color:#38bdf8; font-weight:700;">#${h.drawn_number}</span>
+          </div>
+        `).join('');
+      }
+
+      const passedAdmin = document.getElementById('passedListAdmin');
+      const passedItems = (state.passed_numbers || []);
+      if (passedItems.length === 0) {
+        passedAdmin.innerHTML = '<div style="color:var(--text-muted); padding:10px;">패스된 번호가 없습니다.</div>';
+      } else {
+        passedAdmin.innerHTML = passedItems.map(p => `
+          <span class="chip-passed-admin">#${p.drawn_number} (${p.prize_rank})</span>
+        `).join('');
+      }
+    }
+
+    function onPrizeSelectChange() {
+      if (!currentState) return;
+      const select = document.getElementById('prizeSelect');
+      const cur = currentState.prize_status[select.value];
+      if (cur) {
+        document.getElementById('currentRemainInfo').textContent = `현재 ${cur.confirmed_count}명 확정 / 목표 ${cur.target_count}명`;
+      }
+    }
+
+    function handleDrawRollingStart(drawItem) {
+      document.getElementById('actionStatusLabel').textContent = '⚠️ 번호가 추출되었습니다! 호명 후 [당첨 확정] 또는 [패스]를 누르세요.';
+      const preview = document.getElementById('drawnPreviewNumber');
+      preview.textContent = `#${drawItem.number}`;
+      preview.className = 'drawn-preview-number';
+      document.getElementById('targetPrizeBadge').textContent = `[${drawItem.prize_rank}] ${drawItem.prize_name || ''}`;
+
+      document.getElementById('btnDrawStart').style.display = 'none';
+      document.getElementById('confirmPassGroup').style.display = 'grid';
+    }
+
+    function resetDrawControlsToIdle() {
+      document.getElementById('actionStatusLabel').textContent = '[번호 뽑기] 버튼을 누르면 현장 스크린에 롤링 애니메이션이 시작됩니다.';
+      const preview = document.getElementById('drawnPreviewNumber');
+      preview.textContent = '대기 중';
+      preview.className = 'drawn-preview-number empty';
+      document.getElementById('targetPrizeBadge').textContent = '-';
+
+      document.getElementById('btnDrawStart').style.display = 'inline-flex';
+      document.getElementById('confirmPassGroup').style.display = 'none';
+    }
+
+    // --- 추첨 제어 API 호출 ---
+    async function triggerDrawStart() {
+      if (!currentState) return;
+      const select = document.getElementById('prizeSelect');
+      const curPrize = currentState.prize_status[select.value];
+      if (!curPrize) return;
+
+      if (curPrize.is_completed) {
+        if (!confirm(`이미 ${curPrize.rank} 목표 인원(${curPrize.target_count}명)이 모두 확정되었습니다. 그래도 추가 추첨하시겠습니까?`)) {
+          return;
+        }
+      }
+
+      try {
+        const res = await fetch('/api/draw/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: adminPassword,
+            rank: curPrize.rank,
+            name: curPrize.name
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.detail || data.message || '추첨 시작 실패');
+        }
+      } catch (err) {
+        alert('요청 중 오류가 발생했습니다.');
+      }
+    }
+
+    async function triggerConfirm() {
+      try {
+        const res = await fetch('/api/draw/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: adminPassword })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.detail || '확정 실패');
+        }
+      } catch (err) {
+        alert('요청 실패');
+      }
+    }
+
+    async function triggerPass() {
+      if (!confirm('호명된 참석자가 부재중입니까? 이 번호를 패스 처리하고 목록에 기록합니다.')) return;
+      try {
+        const res = await fetch('/api/draw/pass', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: adminPassword })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.detail || '패스 실패');
+        }
+      } catch (err) {
+        alert('요청 실패');
+      }
+    }
+
+    async function triggerResetAll() {
+      if (!confirm("⚠️ 정말 모든 추첨 데이터를 초기화하시겠습니까?\n(확인: Yes / 취소: No)")) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/draw/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: adminPassword })
+        });
+        if (res.ok) {
+          alert('추첨 데이터가 완전히 초기화되었습니다.');
+        } else {
+          alert('초기화 실패');
+        }
+      } catch (err) {
+        alert('요청 실패');
+      }
+    }
+
+    // --- 설정 탭 렌더링 및 저장 ---
+    function renderPrizeRows(prizes) {
+      const container = document.getElementById('prizeSettingRows');
+      container.innerHTML = '';
+      prizes.forEach((p, idx) => {
+        const row = document.createElement('div');
+        row.className = 'prize-setting-row';
+        row.innerHTML = `
+          <input type="text" value="${p.rank}" class="row-rank" placeholder="예: 1등">
+          <input type="number" min="1" value="${p.count}" class="row-count" placeholder="인원">
+          <input type="text" value="${p.name || ''}" class="row-name" placeholder="상품명 (예: 아이패드)">
+          <button class="btn btn-danger" style="padding: 10px;" onclick="this.parentElement.remove()">✕</button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function addPrizeRow() {
+      const container = document.getElementById('prizeSettingRows');
+      const row = document.createElement('div');
+      row.className = 'prize-setting-row';
+      row.innerHTML = `
+        <input type="text" value="추가등수" class="row-rank" placeholder="예: 특별상">
+        <input type="number" min="1" value="1" class="row-count" placeholder="인원">
+        <input type="text" value="" class="row-name" placeholder="상품명">
+        <button class="btn btn-danger" style="padding: 10px;" onclick="this.parentElement.remove()">✕</button>
+      `;
+      container.appendChild(row);
+    }
+
+    async function saveConfiguration() {
+      const minNum = parseInt(document.getElementById('cfgMin').value);
+      const maxNum = parseInt(document.getElementById('cfgMax').value);
+
+      if (isNaN(minNum) || isNaN(maxNum) || minNum >= maxNum) {
+        alert('최소 번호와 최대 번호를 올바르게 입력해주세요.');
+        return;
+      }
+
+      const rows = document.querySelectorAll('.prize-setting-row');
+      const prizes = [];
+      rows.forEach((r, i) => {
+        const rank = r.querySelector('.row-rank').value.trim();
+        const count = parseInt(r.querySelector('.row-count').value);
+        const name = r.querySelector('.row-name').value.trim();
+        if (rank && count > 0) {
+          prizes.push({ id: `prize_${i}`, rank, count, name });
+        }
+      });
+
+      if (prizes.length === 0) {
+        alert('최소 1개 이상의 등수를 설정해야 합니다.');
+        return;
+      }
+
+      const youtubeUrl = document.getElementById('cfgYoutube') ? document.getElementById('cfgYoutube').value.trim() : '';
+
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: adminPassword,
+            min_number: minNum,
+            max_number: maxNum,
+            bgm_youtube_url: youtubeUrl,
+            prizes: prizes
+          })
+        });
+        if (res.ok) {
+          alert('설정이 성공적으로 저장되었습니다!');
+        } else {
+          const err = await res.json();
+          alert(err.detail || '설정 저장 실패');
+        }
+      } catch (err) {
+        alert('요청 중 오류가 발생했습니다.');
+      }
+    }
+
+    // --- 추첨 세션(대기 vs 시작) 원격 제어 ---
+    async function toggleLotterySession(started) {
+      try {
+        const res = await fetch('/api/draw/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: adminPassword,
+            started: started
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          updateSessionUI(data.started);
+          // 시작 시 음악도 자동으로 30%로 켜주기
+          if (started) {
+            controlBgm('play', 30);
+          } else {
+            controlBgm('pause');
+          }
+        } else {
+          const err = await res.json();
+          alert(err.detail || '세션 변경 실패');
+        }
+      } catch (e) {
+        alert('요청 중 오류가 발생했습니다.');
+      }
+    }
+
+    function updateSessionUI(started) {
+      const badge = document.getElementById('sessionStatusBadge');
+      const desc = document.getElementById('sessionStatusDesc');
+      const btnStart = document.getElementById('btnStartLotterySession');
+      const btnPause = document.getElementById('btnPauseLotterySession');
+      if (started) {
+        if (badge) {
+          badge.textContent = '🟢 추첨 진행 중 (BGM ON)';
+          badge.style.background = 'rgba(16, 185, 129, 0.2)';
+          badge.style.color = '#34d399';
+        }
+        if (desc) {
+          desc.innerHTML = '현장 스크린의 대기 화면이 해제되었으며 <strong>배경음악(BGM 30%)과 추첨 시스템이 활성화</strong>되었습니다.';
+        }
+        if (btnStart) btnStart.style.display = 'none';
+        if (btnPause) btnPause.style.display = 'inline-flex';
+      } else {
+        if (badge) {
+          badge.textContent = '⏸️ 대기 상태 (BGM OFF)';
+          badge.style.background = 'rgba(245, 158, 11, 0.2)';
+          badge.style.color = '#fbbf24';
+        }
+        if (desc) {
+          desc.innerHTML = '현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면이며 BGM이 꺼져 있습니다.<br>행사가 시작되면 아래 <strong>[🎉 현장 추첨 시작하기]</strong> 버튼을 눌러 스크린을 활성화하고 배경음악을 켜주세요.';
+        }
+        if (btnStart) btnStart.style.display = 'inline-flex';
+        if (btnPause) btnPause.style.display = 'none';
+      }
+    }
+
+    // --- 현장 BGM & 사운드 원격 제어 함수 ---
+    let isBgmMuted = false;
+
+    async function controlBgm(action, volume = 30) {
+      try {
+        const res = await fetch('/api/bgm/control', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: adminPassword,
+            action: action,
+            volume: parseInt(volume)
+          })
+        });
+        if (res.ok) {
+          const badge = document.getElementById('bgmStatusBadge');
+          const muteBtn = document.getElementById('btnBgmToggleMute');
+          if (badge) {
+            if (action === 'play' || action === 'unmute') {
+              badge.textContent = '🟢 소리 ON (재생 중)';
+              badge.style.color = '#34d399';
+              badge.style.background = 'rgba(16, 185, 129, 0.2)';
+              isBgmMuted = false;
+              if (muteBtn) muteBtn.textContent = '🔇 음소거 (사운드 OFF)';
+            } else if (action === 'pause') {
+              badge.textContent = '⏸️ 일시 정지';
+              badge.style.color = '#f59e0b';
+              badge.style.background = 'rgba(245, 158, 11, 0.2)';
+            } else if (action === 'mute') {
+              badge.textContent = '🔇 음소거됨 (사운드 OFF)';
+              badge.style.color = '#ef4444';
+              badge.style.background = 'rgba(239, 68, 68, 0.2)';
+              isBgmMuted = true;
+              if (muteBtn) muteBtn.textContent = '🔊 소리 켜기 (사운드 ON)';
+            }
+          }
+        }
+      } catch (err) {
+        console.error('BGM 원격 제어 요청 오류:', err);
+      }
+    }
+
+    function toggleBgmMute() {
+      if (isBgmMuted) {
+        controlBgm('unmute', 30);
+      } else {
+        controlBgm('mute', 0);
+      }
+    }
+
+    let volDebounce = null;
+    function onBgmVolumeChange(val) {
+      document.getElementById('bgmVolLabel').textContent = `볼륨: ${val}%`;
+      clearTimeout(volDebounce);
+      volDebounce = setTimeout(() => {
+        controlBgm('set_volume', val);
+      }, 80);
+    }
+
+    function setBgmVolumePreset(val) {
+      const slider = document.getElementById('bgmVolumeSlider');
+      if (slider) slider.value = val;
+      const label = document.getElementById('bgmVolLabel');
+      if (label) label.textContent = `볼륨: ${val}%`;
+      controlBgm('set_volume', val);
+    }
+
+    async function saveBgmOnly() {
+      if (!currentState) {
+        alert('서버 상태를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      const youtubeUrl = document.getElementById('cfgYoutube') ? document.getElementById('cfgYoutube').value.trim() : '';
+      if (!youtubeUrl) {
+        alert('YouTube 영상 링크를 입력해주세요.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: adminPassword,
+            min_number: currentState.config.min_number,
+            max_number: currentState.config.max_number,
+            bgm_youtube_url: youtubeUrl,
+            prizes: currentState.config.prizes
+          })
+        });
+        if (res.ok) {
+          alert('🎶 BGM 음원 링크가 성공적으로 저장되었으며 현장 스크린에 즉시 동기화되었습니다!');
+        } else {
+          const err = await res.json();
+          alert(err.detail || 'BGM 저장 실패');
+        }
+      } catch (err) {
+        alert('요청 중 오류가 발생했습니다.');
+      }
+    }
+  </script>
+</body>
+</html>
