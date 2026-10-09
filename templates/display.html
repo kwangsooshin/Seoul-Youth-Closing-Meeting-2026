@@ -586,6 +586,13 @@
       pointer-events: none;
     }
 
+    .standby-fullscreen-btn {
+      position: absolute;
+      top: 18px;
+      right: 40px;
+      z-index: 1001;
+    }
+
     .standby-card {
       text-align: center;
       padding: 56px 80px;
@@ -760,6 +767,9 @@
 
   <!-- 추첨 대기 화면 오버레이 (관리자가 추첨 시작 전까지 화면을 덮고 BGM 차단) -->
   <div id="standbyOverlay" class="standby-overlay">
+    <button class="btn-icon standby-fullscreen-btn" onclick="toggleFullscreen()" title="전체 화면 모드 전환">
+      ⛶ 전체 화면
+    </button>
     <div class="standby-card">
       <h2 class="standby-title">
         <span class="text-black">2026</span>
