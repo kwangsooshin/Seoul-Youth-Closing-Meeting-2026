@@ -64,5 +64,13 @@ def save_record(client, record: dict) -> Optional[dict]:
             return _flatten_history(joined.data[0])
     return None
 
+def delete_last_record(client) -> Optional[int]:
+    res = client.table("draw_history").select("id").order("id", desc=True).limit(1).execute()
+    if res.data:
+        last_id = res.data[0]["id"]
+        client.table("draw_history").delete().eq("id", last_id).execute()
+        return last_id
+    return None
+
 def clear_records(client):
     client.table("draw_history").delete().neq("id", 0).execute()

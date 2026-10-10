@@ -102,6 +102,17 @@ def save_record(record: dict, current_prizes: List[Dict[str, Any]]) -> dict:
         row = conn.execute(f"{HISTORY_SELECT_SQL} WHERE h.id = ?", (cur.lastrowid,)).fetchone()
         return dict(row)
 
+def delete_last_record() -> Optional[int]:
+    """가장 최근에 저장된 draw_history 레코드 1건을 삭제하고 삭제된 id 반환"""
+    with sqlite_connect() as conn:
+        row = conn.execute("SELECT id FROM draw_history ORDER BY id DESC LIMIT 1").fetchone()
+        if not row:
+            return None
+        last_id = row["id"]
+        conn.execute("DELETE FROM draw_history WHERE id = ?", (last_id,))
+        conn.commit()
+        return last_id
+
 def clear_records():
     with sqlite_connect() as conn:
         conn.execute("DELETE FROM draw_history")

@@ -521,6 +521,13 @@
             ⏭️ 부재중 패스 (넘어가기)
           </button>
         </div>
+
+        <!-- 3단계: 직전 추첨 건 취소(롤백) 버튼 -->
+        <div id="undoLastGroup" style="margin-top: 14px; display: none;">
+          <button class="btn btn-secondary" id="btnCancelLast" style="font-size: 0.85rem; padding: 8px 16px; border-color: #f59e0b; color: #f59e0b;" onclick="triggerCancelLast()">
+            ↩️ 방금 당첨/패스 취소 (되돌리기)
+          </button>
+        </div>
       </div>
 
       <!-- 실시간 간이 현황판 -->
@@ -588,6 +595,7 @@
       <div class="card">
         <div class="card-title">
           <span>🏆 확정된 당첨자 명단</span>
+          <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem; border-color: #f59e0b; color: #f59e0b;" onclick="triggerCancelLast()">↩️ 최근 내역 1건 취소</button>
         </div>
         <div id="confirmedListAdmin" style="max-height: 200px; overflow-y: auto; font-size: 0.95rem;">
           <!-- 동적 생성 -->
@@ -743,6 +751,9 @@
 
     // --- WebSocket 실시간 연동 ---
     let ws = null;
+    let isScreenRolling = false; // 대형 스크린 롤링 진행 중 여부
+    let rollingTimer = null;
+
     function initWebSocket() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -750,11 +761,13 @@
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET') {
+        if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET' || msg.type === 'DRAW_CANCELLED') {
           currentState = msg.data;
           renderAdminState(msg.data);
         } else if (msg.type === 'DRAW_ROLLING_START') {
           handleDrawRollingStart(msg.data);
+        } else if (msg.type === 'DRAW_ROLLING_COMPLETE') {
+          handleDrawRollingComplete();
         }
       };
 
@@ -839,9 +852,15 @@
 
       // 3. 진행 중인 추첨 번호가 있는 경우 UI 복원
       if (state.current_pending_draw) {
-        handleDrawRollingStart(state.current_pending_draw);
+        handleDrawRollingStart(state.current_pending_draw, true); // 새로고침 복원 시는 이미 롤링 완료로 취급
       } else {
         resetDrawControlsToIdle();
+      }
+
+      // 최근 내역 취소 버튼 노출 여부
+      const undoGroup = document.getElementById('undoLastGroup');
+      if (undoGroup) {
+        undoGroup.style.display = (state.history && state.history.length > 0 && !state.current_pending_draw) ? 'block' : 'none';
       }
 
       // 4. 설정 탭 폼 채우기
@@ -886,18 +905,71 @@
       }
     }
 
-    function handleDrawRollingStart(drawItem) {
-      document.getElementById('actionStatusLabel').textContent = '⚠️ 번호가 추출되었습니다! 호명 후 [당첨 확정] 또는 [패스]를 누르세요.';
+    function handleDrawRollingStart(drawItem, isRestored = false) {
+      const btnConfirm = document.getElementById('btnConfirm');
+      const btnPass = document.getElementById('btnPass');
       const preview = document.getElementById('drawnPreviewNumber');
+      const undoGroup = document.getElementById('undoLastGroup');
+      if (undoGroup) undoGroup.style.display = 'none';
+
       preview.textContent = `#${drawItem.number}`;
       preview.className = 'drawn-preview-number';
       document.getElementById('targetPrizeBadge').textContent = `[${drawItem.prize_rank}] ${drawItem.prize_name || ''}`;
 
       document.getElementById('btnDrawStart').style.display = 'none';
       document.getElementById('confirmPassGroup').style.display = 'grid';
+
+      if (rollingTimer) clearTimeout(rollingTimer);
+
+      if (isRestored) {
+        handleDrawRollingComplete();
+      } else {
+        isScreenRolling = true;
+        document.getElementById('actionStatusLabel').innerHTML = '⏳ <strong style="color:var(--accent-orange);">스크린에서 번호 추첨 중입니다...</strong> (추첨 완료 후 확정 버튼이 활성화됩니다)';
+        if (btnConfirm) {
+          btnConfirm.disabled = true;
+          btnConfirm.style.opacity = '0.5';
+          btnConfirm.style.cursor = 'not-allowed';
+          btnConfirm.textContent = '⏳ 추첨 진행 중...';
+        }
+        if (btnPass) {
+          btnPass.disabled = true;
+          btnPass.style.opacity = '0.5';
+          btnPass.style.cursor = 'not-allowed';
+        }
+
+        // 안전장치: 혹시 스크린에서 완료 이벤트를 놓치더라도 4.2초 후 자동 활성화
+        rollingTimer = setTimeout(() => {
+          handleDrawRollingComplete();
+        }, 4200);
+      }
+    }
+
+    function handleDrawRollingComplete() {
+      isScreenRolling = false;
+      if (rollingTimer) {
+        clearTimeout(rollingTimer);
+        rollingTimer = null;
+      }
+      document.getElementById('actionStatusLabel').textContent = '⚠️ 번호가 추출되었습니다! 호명 후 [당첨 확정] 또는 [패스]를 누르세요.';
+      const btnConfirm = document.getElementById('btnConfirm');
+      const btnPass = document.getElementById('btnPass');
+      if (btnConfirm) {
+        btnConfirm.disabled = false;
+        btnConfirm.style.opacity = '1';
+        btnConfirm.style.cursor = 'pointer';
+        btnConfirm.textContent = '✅ 당첨 확정';
+      }
+      if (btnPass) {
+        btnPass.disabled = false;
+        btnPass.style.opacity = '1';
+        btnPass.style.cursor = 'pointer';
+      }
     }
 
     function resetDrawControlsToIdle() {
+      if (rollingTimer) clearTimeout(rollingTimer);
+      isScreenRolling = false;
       document.getElementById('actionStatusLabel').textContent = '[번호 뽑기] 버튼을 누르면 현장 스크린에 롤링 애니메이션이 시작됩니다.';
       const preview = document.getElementById('drawnPreviewNumber');
       preview.textContent = '대기 중';
@@ -906,6 +978,10 @@
 
       document.getElementById('btnDrawStart').style.display = 'inline-flex';
       document.getElementById('confirmPassGroup').style.display = 'none';
+      const undoGroup = document.getElementById('undoLastGroup');
+      if (undoGroup && currentState && currentState.history && currentState.history.length > 0) {
+        undoGroup.style.display = 'block';
+      }
     }
 
     // --- 추첨 제어 API 호출 ---
@@ -940,6 +1016,10 @@
     }
 
     async function triggerConfirm() {
+      if (isScreenRolling) {
+        alert('현재 현장 스크린에서 번호 추첨(롤링)이 진행 중입니다. 추첨이 완료된 후 확정해주세요.');
+        return;
+      }
       try {
         const res = await fetch('/api/draw/confirm', {
           method: 'POST',
@@ -956,6 +1036,10 @@
     }
 
     async function triggerPass() {
+      if (isScreenRolling) {
+        alert('현재 현장 스크린에서 번호 추첨(롤링)이 진행 중입니다. 잠시만 기다려주세요.');
+        return;
+      }
       if (!confirm('호명된 참석자가 부재중입니까? 이 번호를 패스 처리하고 목록에 기록합니다.')) return;
       try {
         const res = await fetch('/api/draw/pass', {
@@ -969,6 +1053,34 @@
         }
       } catch (err) {
         alert('요청 실패');
+      }
+    }
+
+    async function triggerCancelLast() {
+      if (!currentState || !currentState.history || currentState.history.length === 0) {
+        alert('취소할 수 있는 최근 추첨 내역이 없습니다.');
+        return;
+      }
+      const last = currentState.history[currentState.history.length - 1];
+      const statusText = last.status === 'CONFIRMED' ? '당첨 확정' : '부재중 패스';
+      if (!confirm(`↩️ 정말 최근 추첨 건을 취소하시겠습니까?\n\n- 등수: [${last.prize_rank}] ${last.prize_name || ''}\n- 번호: #${last.drawn_number}\n- 상태: ${statusText}\n\n취소 시 해당 번호는 다시 추첨 가능한 상태로 복구됩니다.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/draw/cancel-last', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: adminPassword })
+        });
+        if (res.ok) {
+          alert(`✅ #${last.drawn_number}번 [${last.prize_rank}] 추첨 내역이 취소(롤백)되었습니다.`);
+        } else {
+          const err = await res.json();
+          alert(err.detail || '취소 실패');
+        }
+      } catch (e) {
+        alert('요청 중 오류가 발생했습니다.');
       }
     }
 

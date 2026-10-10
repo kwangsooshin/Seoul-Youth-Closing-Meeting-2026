@@ -78,6 +78,16 @@ def save_record(record: dict, current_prizes: List[Dict[str, Any]]) -> dict:
             use_supabase = False
     return sqlite_db.save_record(record, current_prizes)
 
+def delete_last_record() -> Optional[int]:
+    global use_supabase
+    if use_supabase and supabase_client:
+        try:
+            return supabase_db.delete_last_record(supabase_client)
+        except Exception as e:
+            print(f"[WARN] Supabase 최근 기록 삭제 실패 -> SQLite로 대체: {e}")
+            use_supabase = False
+    return sqlite_db.delete_last_record()
+
 def clear_records():
     global use_supabase
     if use_supabase and supabase_client:

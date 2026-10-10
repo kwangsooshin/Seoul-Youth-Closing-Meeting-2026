@@ -46,7 +46,7 @@ if sys.platform == "win32":
         pass
 
 # --- DB 모듈 임포트 및 초기화 ---
-from db import init_db, load_prizes, load_history, save_prizes, save_record, clear_records, get_db_info
+from db import init_db, load_prizes, load_history, save_prizes, save_record, delete_last_record, clear_records, get_db_info
 
 init_db(DEFAULT_PRIZES)
 
@@ -205,7 +205,13 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         await websocket.send_json({"type": "SYNC_STATE", "data": get_stats()})
         while True:
-            await websocket.receive_text()
+            text = await websocket.receive_text()
+            try:
+                data = json.loads(text)
+                if isinstance(data, dict) and data.get("type"):
+                    await manager.broadcast(data)
+            except Exception:
+                pass
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception:
@@ -424,7 +430,31 @@ async def pass_draw(req: DrawActionRequest):
     if not current_pending_draw:
         raise HTTPException(status_code=400, detail="패스할 추첨 번호가 없습니다.")
 
-    return await _finalize_pending_draw("PASSED", "DRAW_PASSED")
+@app.post("/api/draw/cancel-last")
+async def cancel_last_draw(req: DrawActionRequest):
+    """방금 확정/패스된 가장 최근 추첨 건 취소 및 롤백"""
+    global draw_history
+    if req.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="인증 실패")
+
+    if not draw_history:
+        raise HTTPException(status_code=400, detail="취소할 수 있는 최근 추첨 내역이 없습니다.")
+
+    last_record = draw_history[-1]
+    deleted_id = delete_last_record()
+    if not deleted_id:
+        raise HTTPException(status_code=500, detail="DB에서 최근 내역을 삭제하지 못했습니다.")
+
+    removed_item = draw_history.pop()
+    state = get_stats()
+
+    await manager.broadcast({
+        "type": "DRAW_CANCELLED",
+        "item": removed_item,
+        "data": state
+    })
+
+    return {"success": True, "cancelled": removed_item}
 
 
 class DrawResetRequest(BaseModel):

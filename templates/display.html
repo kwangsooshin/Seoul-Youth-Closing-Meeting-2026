@@ -1206,19 +1206,57 @@
       } catch (e) {}
     }
 
-    // 당첨 축하 팡파레 멜로디 (화음과 웅장한 트럼펫 사운드)
-    function playWinnerSound() {
+    // 1) 당첨 번호 출현/안착 사운드 (두둥-탁! 벨 & 심벌즈 팡파레 도입부)
+    function playRevealSound() {
       if (!soundEnabled) return;
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
-        // 멜로디 시퀀스: 솔(392) -> 도(523.25) -> 미(659.25) -> 솔(783.99) -> 높은도(1046.5)
+        // 저음 임팩트 (두둥!)
+        const kickOsc = ctx.createOscillator();
+        const kickGain = ctx.createGain();
+        kickOsc.type = 'sine';
+        kickOsc.frequency.setValueAtTime(150, now);
+        kickOsc.frequency.exponentialRampToValueAtTime(35, now + 0.4);
+        kickGain.gain.setValueAtTime(0.7, now);
+        kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        kickOsc.connect(kickGain);
+        kickGain.connect(ctx.destination);
+        kickOsc.start(now);
+        kickOsc.stop(now + 0.4);
+
+        // 반짝이는 벨 코드 (찬란한 차임벨: 도-미-솔-도)
+        const chimeNotes = [523.25, 659.25, 783.99, 1046.50];
+        chimeNotes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + 0.08 * idx);
+          gain.gain.setValueAtTime(0.35, now + 0.08 * idx);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08 * idx + 0.9);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + 0.08 * idx);
+          osc.stop(now + 0.08 * idx + 0.9);
+        });
+      } catch (e) {
+        console.warn('출현 사운드 재생 실패:', e);
+      }
+    }
+
+    // 2) 최종 당첨 확정 사운드 (웅장한 5단계 브라스 팡파레 + 풍성한 축하 화음 피날레)
+    function playFinalConfirmSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        // 웅장한 팡파레 브라스 시퀀스: 솔(392) -> 도(523.25) -> 미(659.25) -> 솔(783.99) -> 높은도(1046.5)
         const fanfareNotes = [
-          { freq: 392.00, time: 0.00, dur: 0.18, vol: 0.4 }, // G4
-          { freq: 523.25, time: 0.18, dur: 0.18, vol: 0.4 }, // C5
-          { freq: 659.25, time: 0.36, dur: 0.22, vol: 0.4 }, // E5
-          { freq: 783.99, time: 0.58, dur: 0.35, vol: 0.5 }, // G5
-          { freq: 1046.5, time: 0.95, dur: 1.20, vol: 0.55 } // C6 (피날레 롱톤)
+          { freq: 392.00, time: 0.00, dur: 0.18, vol: 0.45 }, // G4
+          { freq: 523.25, time: 0.18, dur: 0.18, vol: 0.45 }, // C5
+          { freq: 659.25, time: 0.36, dur: 0.22, vol: 0.45 }, // E5
+          { freq: 783.99, time: 0.58, dur: 0.35, vol: 0.55 }, // G5
+          { freq: 1046.5, time: 0.95, dur: 1.40, vol: 0.65 }  // C6 (피날레 롱톤)
         ];
 
         fanfareNotes.forEach(note => {
@@ -1234,22 +1272,22 @@
           osc.stop(now + note.time + note.dur);
         });
 
-        // 피날레 화음 (풍성한 베이스 및 하모니)
-        const chordNotes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+        // 피날레 웅장한 화음 & 베이스 오케스트라
+        const chordNotes = [130.81, 261.63, 329.63, 392.00, 523.25]; // C3(풍성한 베이스), C4, E4, G4, C5
         chordNotes.forEach(freq => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, now + 0.95);
-          gain.gain.setValueAtTime(0.25, now + 0.95);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 2.1);
+          gain.gain.setValueAtTime(0.3, now + 0.95);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 2.3);
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.start(now + 0.95);
-          osc.stop(now + 2.1);
+          osc.stop(now + 2.3);
         });
       } catch (e) {
-        console.warn('팡파레 재생 실패:', e);
+        console.warn('확정 팡파레 재생 실패:', e);
       }
     }
 
@@ -1343,14 +1381,21 @@
         if (elapsed >= durationMs) {
           clearInterval(rollingInterval);
           isCurrentlyRolling = false;
-          // 최종 당첨 번호 안착! BGM을 5%로 극소화하여 팡파레 효과음 극대화 후 복원
-          duckBgm(5, 3800);
+          // 번호 안착 사운드 (두둥-탁! 차임벨) 및 가벼운 축하
+          duckBgm(10, 2500);
           numDisplay.textContent = targetNum;
           slotBox.className = 'slot-machine-container is-winner';
           numDisplay.className = 'lucky-number-display winner-text';
-          statusMsg.innerHTML = `🎉 당첨 번호 <strong style="color:var(--accent-gold); font-size:1.8rem; margin: 0 8px;">#${targetNum}</strong> 번이 나왔습니다! 호명 중입니다!`;
-          playWinnerSound();
+          statusMsg.innerHTML = `🎲 당첨 번호 <strong style="color:var(--accent-gold); font-size:1.8rem; margin: 0 8px;">#${targetNum}</strong> 번이 나왔습니다! 호명 중입니다!`;
+          playRevealSound();
           triggerCelebrationConfetti();
+
+          // 관리자 화면 등에 롤링 완료 이벤트 전송
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            try {
+              ws.send(JSON.stringify({ type: 'DRAW_ROLLING_COMPLETE', number: targetNum }));
+            } catch (e) {}
+          }
         }
       }, 70);
     }
@@ -1479,9 +1524,15 @@
           const item = msg.item;
           const statusMsg = document.getElementById('drawStatusMsg');
           statusMsg.innerHTML = `🎊 <strong style="color:var(--primary-blue); font-size:1.7rem;">#${item.number}</strong>번 <span style="color:var(--accent-orange-dark); font-weight:800;">[${item.prize_rank}]</span> 당첨이 최종 확정되었습니다!`;
-          duckBgm(5, 3800); // 팡파레 효과음 동안 BGM을 5%로 줄여 축하 사운드 극대화
-          playWinnerSound();
+          duckBgm(5, 3800); // 웅장한 팡파레 효과음 동안 BGM을 5%로 줄여 축하 사운드 극대화
+          playFinalConfirmSound();
           triggerCelebrationConfetti();
+          renderState(msg.data);
+        } else if (msg.type === 'DRAW_CANCELLED') {
+          // 관리자가 직전 당첨/패스 취소(롤백) 처리
+          const item = msg.item;
+          const statusMsg = document.getElementById('drawStatusMsg');
+          statusMsg.innerHTML = `<span style="color:#f59e0b; font-weight:700;">↩️ #${item.drawn_number}번 [${item.prize_rank}] 내역이 취소되었습니다.</span>`;
           renderState(msg.data);
         } else if (msg.type === 'DRAW_PASSED') {
           // 관리자가 부재중 패스 클릭!
