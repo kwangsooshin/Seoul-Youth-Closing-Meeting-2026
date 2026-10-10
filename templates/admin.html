@@ -861,9 +861,10 @@
       <!-- 💾 현재 DB 저장소 상태 안내 카드 -->
       <div class="card" style="margin-bottom: 20px; border-color: rgba(56, 189, 248, 0.35); background: rgba(15, 23, 42, 0.9);">
         <div class="card-title" style="margin-bottom: 8px;">
-          <span style="display:flex; align-items:center; gap:8px;">
+          <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>💾 현재 데이터베이스 저장소</span>
             <span id="dbInfoCardBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700;">확인 중</span>
+            <span id="dbSchemaBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(2, 132, 199, 0.2); color: #38bdf8; font-weight: 700; border: 1px solid rgba(2, 132, 199, 0.4);">스키마: DEV</span>
           </span>
         </div>
         <div style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;" id="dbInfoCardDesc">
@@ -1115,12 +1116,28 @@
       const cfg = state.config;
 
       // 0. DB 저장소 상태 배지 및 정보 카드 동기화
-      const dbInfo = state.db_info || { type: 'SQLITE', name: '로컬 SQLite (lottery.db)', details: '' };
+      const dbInfo = state.db_info || { type: 'SQLITE', name: '로컬 SQLite (lottery.db)', details: '', schema: 'dev' };
+      const currentSchema = (dbInfo.schema || 'dev').toLowerCase();
+      const upperSchema = currentSchema.toUpperCase();
       const dbBadge = document.getElementById('dbStatusBadge');
       const dbDot = document.getElementById('dbStatusDot');
       const dbText = document.getElementById('dbStatusText');
       const dbCardBadge = document.getElementById('dbInfoCardBadge');
       const dbCardDesc = document.getElementById('dbInfoCardDesc');
+      const dbSchemaBadge = document.getElementById('dbSchemaBadge');
+
+      if (dbSchemaBadge) {
+        dbSchemaBadge.textContent = `스키마: ${upperSchema}`;
+        if (upperSchema === 'SERVICE') {
+          dbSchemaBadge.style.background = 'rgba(245, 144, 30, 0.2)';
+          dbSchemaBadge.style.color = '#fb923c';
+          dbSchemaBadge.style.borderColor = 'rgba(245, 144, 30, 0.45)';
+        } else {
+          dbSchemaBadge.style.background = 'rgba(2, 132, 199, 0.2)';
+          dbSchemaBadge.style.color = '#38bdf8';
+          dbSchemaBadge.style.borderColor = 'rgba(56, 189, 248, 0.45)';
+        }
+      }
 
       if (dbInfo.type === 'SUPABASE') {
         if (dbBadge) {
@@ -1136,7 +1153,7 @@
           dbCardBadge.style.color = '#34d399';
         }
         if (dbCardDesc) {
-          dbCardDesc.innerHTML = `현재 <strong>Supabase 클라우드 DB</strong> (테이블: <code>draw_history</code>)에 추첨 데이터가 실시간 저장되고 있습니다. (총 ${(state.history || []).length}건 기록됨)`;
+          dbCardDesc.innerHTML = `현재 <strong>Supabase 클라우드 DB</strong>에 추첨 데이터가 실시간 저장되고 있습니다. (총 ${(state.history || []).length}건 기록됨)`;
         }
       } else {
         if (dbBadge) {

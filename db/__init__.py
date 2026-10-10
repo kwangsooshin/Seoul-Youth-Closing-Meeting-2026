@@ -150,10 +150,13 @@ def clear_records():
 
 def get_db_info(history_count: int) -> Dict[str, str]:
     schema = supabase_db.get_schema()
+    zone = os.getenv("ZONE", "dev").strip().lower()
     return {
         "type": "SUPABASE" if use_supabase else "SQLITE",
-        "name": f"Supabase 클라우드 [{schema.upper()}]" if use_supabase else "로컬 SQLite (lottery.db)",
-        "details": f"스키마: {schema} / 테이블: prizes, draw_history ({history_count}건)" if use_supabase else f"파일: lottery.db ({history_count}건)"
+        "name": "Supabase 클라우드" if use_supabase else "로컬 SQLite (lottery.db)",
+        "details": f"스키마: {schema} ({history_count}건)" if use_supabase else f"파일: lottery.db ({history_count}건)",
+        "schema": schema,
+        "zone": zone,
     }
 
 def save_access_log(ip: str, page_type: str, path: str, user_agent: str = ""):
