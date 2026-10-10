@@ -192,4 +192,17 @@ def cleanup_old_access_logs(hours: int = 24) -> int:
         print(f"[WARN] SQLite 감사 로그 정리 오류: {e}")
         return 0
 
+def clear_all_access_logs() -> int:
+    """접속 감사 로그 전체 초기화/삭제"""
+    try:
+        with sqlite_connect() as conn:
+            cur = conn.execute("DELETE FROM access_logs")
+            deleted_count = cur.rowcount
+            conn.commit()
+            print(f"[INFO] SQLite: 전체 {deleted_count}건의 감사 로그를 초기화했습니다.")
+            return deleted_count
+    except Exception as e:
+        print(f"[WARN] SQLite 감사 로그 전체 삭제 오류: {e}")
+        return 0
+
 

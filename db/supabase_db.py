@@ -124,4 +124,15 @@ def cleanup_old_access_logs(client, hours: int = 24) -> int:
         print(f"[WARN] Supabase 감사 로그 정리 오류: {e}")
         return 0
 
+def clear_all_access_logs(client) -> int:
+    """Supabase access_logs 테이블 전체 초기화/삭제"""
+    try:
+        res = client.table("access_logs").delete().neq("id", 0).execute()
+        deleted_count = len(res.data) if res.data else 0
+        print(f"[INFO] Supabase: 전체 {deleted_count}건의 감사 로그를 초기화했습니다.")
+        return deleted_count
+    except Exception as e:
+        print(f"[WARN] Supabase 감사 로그 전체 삭제 오류: {e}")
+        return 0
+
 

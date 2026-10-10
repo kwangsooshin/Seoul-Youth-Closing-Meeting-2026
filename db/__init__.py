@@ -195,4 +195,23 @@ def cleanup_old_access_logs(hours: int = 24):
     except Exception as e:
         print(f"[WARN] SQLite 감사 로그 정리 오류: {e}")
 
+def clear_all_access_logs() -> int:
+    """Supabase 및 SQLite에서 모든 접속 감사 로그 초기화/삭제"""
+    global use_supabase
+    deleted_count = 0
+    if use_supabase and supabase_client:
+        try:
+            deleted_count = supabase_db.clear_all_access_logs(supabase_client)
+        except Exception as e:
+            print(f"[WARN] Supabase 감사 로그 전체 삭제 오류: {e}")
+
+    try:
+        sqlite_deleted = sqlite_db.clear_all_access_logs()
+        if not deleted_count:
+            deleted_count = sqlite_deleted
+    except Exception as e:
+        print(f"[WARN] SQLite 감사 로그 전체 삭제 오류: {e}")
+
+    return deleted_count
+
 

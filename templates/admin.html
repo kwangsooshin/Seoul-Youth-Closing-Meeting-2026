@@ -480,6 +480,108 @@
       max-width: 400px;
       text-align: center;
     }
+
+    /* 감사 로그 필터 세그먼트 버튼 */
+    .audit-filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .audit-filter-btn {
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.7);
+      color: #94a3b8;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .audit-filter-btn:hover {
+      background: rgba(30, 41, 59, 0.9);
+      color: #f1f5f9;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .audit-filter-btn.active-all {
+      background: rgba(2, 132, 199, 0.25);
+      border-color: rgba(56, 189, 248, 0.6);
+      color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+    }
+
+    .audit-filter-btn.active-display {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: #38bdf8;
+      color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    }
+
+    .audit-filter-btn.active-admin {
+      background: rgba(245, 144, 30, 0.2);
+      border-color: #f5901e;
+      color: #f5901e;
+      box-shadow: 0 0 12px rgba(245, 144, 30, 0.25);
+    }
+
+    .audit-filter-btn.active-healthcheck {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: #10b981;
+      color: #34d399;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .audit-filter-count {
+      font-size: 0.72rem;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.4);
+      font-weight: 700;
+    }
+
+    /* 감사 로그 페이지네이션 */
+    .audit-page-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(15, 23, 42, 0.7);
+      color: #cbd5e1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      min-width: 34px;
+    }
+
+    .audit-page-btn:hover:not(:disabled) {
+      background: rgba(30, 41, 59, 0.95);
+      border-color: rgba(56, 189, 248, 0.5);
+      color: #38bdf8;
+    }
+
+    .audit-page-btn.active {
+      background: var(--primary);
+      border-color: var(--primary-sky);
+      color: white;
+      box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+    }
+
+    .audit-page-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -802,24 +904,57 @@
     <!-- TAB 5: 📋 페이지 접속 감사 로그 (Audit Logs) -->
     <section id="auditTab" class="tab-content">
       <div class="card">
-        <div class="card-title">
-          <span style="display: flex; align-items: center; gap: 8px;">
-            <span>📋 페이지 접속 감사 로그 (Audit Logs)</span>
-            <span id="auditCountBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-weight: 700;">최근 50건</span>
-            <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #34d399; font-weight: 700;">⏱️ 24시간 자동 보관</span>
-          </span>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="cleanupOldAuditLogs()">
-              🧹 24시간 경과 로그 정리
+        <!-- 1층: 카드 헤더 (제목 및 전역 액션 버튼) -->
+        <div class="card-title" style="margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span>📋 페이지 접속 감사 로그</span>
+            <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #34d399; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.3);">
+              ⏱️ 24시간 자동 보관
+            </span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="clearAllAuditLogs()">
+              🗑️ 전체 로그 정리
             </button>
             <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: var(--primary); color: var(--primary-sky); background: rgba(2, 132, 199, 0.1);" onclick="loadAuditLogs()">
               🔄 새로고침
             </button>
           </div>
         </div>
+
+        <!-- 2층: 간결한 설명글 -->
         <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; line-height: 1.5;">
-          현장 송출 스크린(<code>/display</code>) 및 관리자 콘솔(<code>/admin</code>)에 접속한 클라이언트의 접속 IP와 접속 시간을 실시간으로 데이터베이스에 기록한 감사 로그입니다.
+          서비스에 접속한 클라이언트의 접속 IP, 경로 및 일시를 실시간으로 기록한 감사 로그입니다.
         </p>
+
+        <!-- 3층: 통합 툴바 (좌: 페이지 구분 필터 / 우: 페이지당 건수 선택) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; padding: 10px 14px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px;">
+          <!-- 좌측: 페이지 구분 필터 칩 -->
+          <div class="audit-filter-bar" style="margin-bottom: 0;">
+            <button class="audit-filter-btn active-all" id="auditFilterAll" onclick="setAuditFilter('all')">
+              <span>전체</span> <span class="audit-filter-count" id="countAuditAll">0</span>
+            </button>
+            <button class="audit-filter-btn" id="auditFilterDisplay" onclick="setAuditFilter('display')">
+              <span>📺 display</span> <span class="audit-filter-count" id="countAuditDisplay">0</span>
+            </button>
+            <button class="audit-filter-btn" id="auditFilterAdmin" onclick="setAuditFilter('admin')">
+              <span>🔐 admin</span> <span class="audit-filter-count" id="countAuditAdmin">0</span>
+            </button>
+            <button class="audit-filter-btn" id="auditFilterHealthcheck" onclick="setAuditFilter('healthcheck')">
+              <span>🤖 healthcheck</span> <span class="audit-filter-count" id="countAuditHealthcheck">0</span>
+            </button>
+          </div>
+
+          <!-- 우측: 페이지당 건수 선택 -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">페이지당:</span>
+            <select id="auditPageSizeSelect" onchange="changeAuditPageSize(this.value)" style="width: auto; padding: 6px 12px; font-size: 0.8rem; background: #0f172a; border: 1px solid var(--card-border); border-radius: 8px; color: #cbd5e1; cursor: pointer;">
+              <option value="20">20개씩 보기</option>
+              <option value="50" selected>50개씩 보기</option>
+              <option value="100">100개씩 보기</option>
+            </select>
+          </div>
+        </div>
 
         <div style="overflow-x: auto; border: 1px solid var(--card-border); border-radius: 12px; background: #0f172a;">
           <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
@@ -827,9 +962,9 @@
               <tr style="border-bottom: 1px solid var(--card-border); background: rgba(30, 41, 59, 0.7); color: #cbd5e1; font-size: 0.8rem;">
                 <th style="padding: 12px 14px; font-weight: 700; width: 60px; text-align: center;">No.</th>
                 <th style="padding: 12px 14px; font-weight: 700; width: 155px;">접속 일시</th>
-                <th style="padding: 12px 14px; font-weight: 700; width: 100px; text-align: center;">페이지 구분</th>
+                <th style="padding: 12px 14px; font-weight: 700; width: 110px; text-align: center;">페이지 구분</th>
                 <th style="padding: 12px 14px; font-weight: 700; width: 140px;">접속 IP</th>
-                <th style="padding: 12px 14px; font-weight: 700; width: 100px;">경로</th>
+                <th style="padding: 12px 14px; font-weight: 700; width: 110px;">경로</th>
                 <th style="padding: 12px 14px; font-weight: 700;">브라우저 / User-Agent</th>
               </tr>
             </thead>
@@ -839,6 +974,16 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- 하단 페이지네이션 바 -->
+        <div id="auditPaginationBar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 12px; padding: 4px 2px;">
+          <div style="font-size: 0.82rem; color: #94a3b8;" id="auditPageInfo">
+            로그 정보를 불러오는 중...
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;" id="auditPaginationButtons">
+            <!-- 페이지 번호 버튼들이 동적으로 생성됨 -->
+          </div>
         </div>
       </div>
     </section>
@@ -1692,77 +1837,239 @@
         .replace(/'/g, '&#39;');
     }
 
-    // --- 접속 감사 로그(Audit Log) 로드 (헤더 Bearer 토큰 인증) ---
+    // --- 접속 감사 로그(Audit Log) 상태 관리 & 실시간 페이징/필터링 ---
+    let allAuditLogs = [];
+    let currentAuditFilter = 'all';
+    let auditCurrentPage = 1;
+    let auditPageSize = 50; // 기본 50개씩 보기
+
+    function changeAuditPageSize(val) {
+      auditPageSize = parseInt(val, 10) || 50;
+      auditCurrentPage = 1;
+      renderAuditTable();
+    }
+
+    function setAuditFilter(filterType) {
+      currentAuditFilter = filterType;
+      auditCurrentPage = 1; // 필터 변경 시 1페이지로 리셋
+
+      // 버튼 활성 스타일 토글
+      const buttons = {
+        all: { id: 'auditFilterAll', activeClass: 'active-all' },
+        display: { id: 'auditFilterDisplay', activeClass: 'active-display' },
+        admin: { id: 'auditFilterAdmin', activeClass: 'active-admin' },
+        healthcheck: { id: 'auditFilterHealthcheck', activeClass: 'active-healthcheck' }
+      };
+
+      Object.entries(buttons).forEach(([key, cfg]) => {
+        const btn = document.getElementById(cfg.id);
+        if (btn) {
+          btn.classList.remove('active-all', 'active-display', 'active-admin', 'active-healthcheck');
+          if (key === filterType) {
+            btn.classList.add(cfg.activeClass);
+          }
+        }
+      });
+
+      renderAuditTable();
+    }
+
+    function goToAuditPage(pageNum) {
+      auditCurrentPage = pageNum;
+      renderAuditTable();
+    }
+
+    function updateAuditCounts() {
+      const cntAll = allAuditLogs.length;
+      const cntDisplay = allAuditLogs.filter(l => l.page_type === 'display').length;
+      const cntAdmin = allAuditLogs.filter(l => l.page_type === 'admin').length;
+      const cntHealth = allAuditLogs.filter(l => l.page_type === 'healthcheck').length;
+
+      const elAll = document.getElementById('countAuditAll');
+      const elDisplay = document.getElementById('countAuditDisplay');
+      const elAdmin = document.getElementById('countAuditAdmin');
+      const elHealth = document.getElementById('countAuditHealthcheck');
+
+      if (elAll) elAll.textContent = cntAll;
+      if (elDisplay) elDisplay.textContent = cntDisplay;
+      if (elAdmin) elAdmin.textContent = cntAdmin;
+      if (elHealth) elHealth.textContent = cntHealth;
+    }
+
+    function renderAuditTable() {
+      const tbody = document.getElementById('auditLogsTableBody');
+      const pageInfo = document.getElementById('auditPageInfo');
+      const pageButtons = document.getElementById('auditPaginationButtons');
+      if (!tbody) return;
+
+      const filtered = currentAuditFilter === 'all'
+        ? allAuditLogs
+        : allAuditLogs.filter(l => l.page_type === currentAuditFilter);
+
+      const totalItems = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / auditPageSize));
+
+      if (auditCurrentPage > totalPages) {
+        auditCurrentPage = totalPages;
+      }
+      if (auditCurrentPage < 1) {
+        auditCurrentPage = 1;
+      }
+
+      if (allAuditLogs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 32px 16px; text-align: center; color: var(--text-muted);"><div style="font-size: 1.4rem; margin-bottom: 6px;">📭</div>기록된 접속 로그가 없습니다.</td></tr>`;
+        if (pageInfo) pageInfo.textContent = '기록된 로그 없음';
+        if (pageButtons) pageButtons.innerHTML = '';
+        return;
+      }
+
+      if (totalItems === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="padding: 32px 16px; text-align: center; color: var(--text-muted);">
+              <div style="font-size: 1.4rem; margin-bottom: 6px;">🔍</div>
+              선택한 <strong>[${escapeHtml(currentAuditFilter)}]</strong> 구분의 접속 로그가 없습니다. (다른 필터를 선택해 보세요)
+            </td>
+          </tr>
+        `;
+        if (pageInfo) pageInfo.textContent = '조건에 일치하는 로그가 없습니다';
+        if (pageButtons) pageButtons.innerHTML = '';
+        return;
+      }
+
+      // 페이징 범위 슬라이스
+      const startIndex = (auditCurrentPage - 1) * auditPageSize;
+      const endIndex = Math.min(startIndex + auditPageSize, totalItems);
+      const pageItems = filtered.slice(startIndex, endIndex);
+
+      tbody.innerHTML = pageItems.map((log, idx) => {
+        let typeBadge = '';
+        if (log.page_type === 'display') {
+          typeBadge = `<span style="display:inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">📺 display</span>`;
+        } else if (log.page_type === 'admin') {
+          typeBadge = `<span style="display:inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(245, 144, 30, 0.15); color: #f5901e; border: 1px solid rgba(245, 144, 30, 0.35);">🔐 admin</span>`;
+        } else if (log.page_type === 'healthcheck') {
+          typeBadge = `<span style="display:inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">🤖 healthcheck</span>`;
+        } else {
+          typeBadge = `<span style="display:inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">${escapeHtml(log.page_type || '-')}</span>`;
+        }
+
+        const dt = log.created_at ? new Date(log.created_at) : null;
+        const formattedDate = dt && !isNaN(dt.getTime())
+          ? `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}:${String(dt.getSeconds()).padStart(2, '0')}`
+          : (log.created_at || '-');
+
+        const ua = log.user_agent ? escapeHtml(log.user_agent) : '-';
+
+        return `
+          <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: background 0.15s;" onmouseover="this.style.background='rgba(255, 255, 255, 0.03)'" onmouseout="this.style.background='transparent'">
+            <td style="padding: 10px 14px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">${startIndex + idx + 1}</td>
+            <td style="padding: 10px 14px; color: #cbd5e1; white-space: nowrap; font-family: monospace; font-size: 0.82rem;">${formattedDate}</td>
+            <td style="padding: 10px 14px; text-align: center; white-space: nowrap;">${typeBadge}</td>
+            <td style="padding: 10px 14px; font-family: monospace; font-weight: 700; color: #38bdf8; white-space: nowrap;">
+              <code style="background: rgba(15, 23, 42, 0.8); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">${escapeHtml(log.ip || '-')}</code>
+            </td>
+            <td style="padding: 10px 14px; color: #94a3b8; font-family: monospace; font-size: 0.82rem;">${escapeHtml(log.path || '-')}</td>
+            <td style="padding: 10px 14px; color: #64748b; font-size: 0.78rem; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${ua}">${ua}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // 하단 페이지 정보 텍스트 갱신
+      if (pageInfo) {
+        pageInfo.innerHTML = `전체 <strong>${totalItems}건</strong> 중 <strong>${startIndex + 1} - ${endIndex}건</strong> 표시 (페이지 <strong>${auditCurrentPage}</strong> / ${totalPages})`;
+      }
+
+      // 하단 페이지 번호 버튼 렌더링
+      if (pageButtons) {
+        let btnsHtml = '';
+
+        // 이전 페이지 버튼
+        btnsHtml += `
+          <button class="audit-page-btn" onclick="goToAuditPage(${auditCurrentPage - 1})" ${auditCurrentPage <= 1 ? 'disabled' : ''} title="이전 페이지">
+            ◀
+          </button>
+        `;
+
+        // 페이지 번호 (최대 5개 동적 노출)
+        let startPage = Math.max(1, auditCurrentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) {
+          startPage = Math.max(1, endPage - 4);
+        }
+
+        if (startPage > 1) {
+          btnsHtml += `<button class="audit-page-btn" onclick="goToAuditPage(1)">1</button>`;
+          if (startPage > 2) {
+            btnsHtml += `<span style="color: #64748b; padding: 0 4px; font-size: 0.8rem;">...</span>`;
+          }
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+          btnsHtml += `
+            <button class="audit-page-btn ${p === auditCurrentPage ? 'active' : ''}" onclick="goToAuditPage(${p})">
+              ${p}
+            </button>
+          `;
+        }
+
+        if (endPage < totalPages) {
+          if (endPage < totalPages - 1) {
+            btnsHtml += `<span style="color: #64748b; padding: 0 4px; font-size: 0.8rem;">...</span>`;
+          }
+          btnsHtml += `<button class="audit-page-btn" onclick="goToAuditPage(${totalPages})">${totalPages}</button>`;
+        }
+
+        // 다음 페이지 버튼
+        btnsHtml += `
+          <button class="audit-page-btn" onclick="goToAuditPage(${auditCurrentPage + 1})" ${auditCurrentPage >= totalPages ? 'disabled' : ''} title="다음 페이지">
+            ▶
+          </button>
+        `;
+
+        pageButtons.innerHTML = btnsHtml;
+      }
+    }
+
+    // --- 접속 감사 로그(Audit Log) 로드 (최근 24시간 전체 보관분 일괄 로드 후 페이징) ---
     async function loadAuditLogs() {
       const tbody = document.getElementById('auditLogsTableBody');
-      const badge = document.getElementById('auditCountBadge');
+      const pageInfo = document.getElementById('auditPageInfo');
+      const pageButtons = document.getElementById('auditPaginationButtons');
       if (!tbody) return;
 
       tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--text-muted);">로그를 불러오는 중입니다...</td></tr>`;
+      if (pageInfo) pageInfo.textContent = '로그 로딩 중...';
+      if (pageButtons) pageButtons.innerHTML = '';
 
       try {
-        // adminFetch가 Authorization Bearer 토큰 헤더를 자동으로 첨부합니다
-        const res = await adminFetch('/api/admin/audit-logs?limit=50');
+        // limit=0으로 24시간 보관 전체 로그(최대 1000건)를 로드
+        const res = await adminFetch('/api/admin/audit-logs?limit=0');
         if (!res.ok) {
           throw new Error('감사 로그 조회 실패 (인증 만료 또는 서버 오류)');
         }
         const data = await res.json();
-        const logs = data.logs || [];
+        allAuditLogs = data.logs || [];
 
-        if (badge) badge.textContent = `최근 ${logs.length}건`;
-
-        if (logs.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--text-muted);">기록된 접속 로그가 없습니다.</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = logs.map((log, idx) => {
-          let typeBadge = '';
-          if (log.page_type === 'display') {
-            typeBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">📺 display</span>`;
-          } else if (log.page_type === 'admin') {
-            typeBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(245, 144, 30, 0.15); color: #f5901e; border: 1px solid rgba(245, 144, 30, 0.3);">🔐 admin</span>`;
-          } else if (log.page_type === 'healthcheck') {
-            typeBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">🤖 healthcheck</span>`;
-          } else {
-            typeBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">${escapeHtml(log.page_type || '-')}</span>`;
-          }
-
-          const dt = log.created_at ? new Date(log.created_at) : null;
-          const formattedDate = dt && !isNaN(dt.getTime())
-            ? `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}:${String(dt.getSeconds()).padStart(2, '0')}`
-            : (log.created_at || '-');
-
-          const ua = log.user_agent ? escapeHtml(log.user_agent) : '-';
-
-          return `
-            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: background 0.15s;" onmouseover="this.style.background='rgba(255, 255, 255, 0.03)'" onmouseout="this.style.background='transparent'">
-              <td style="padding: 10px 14px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">${idx + 1}</td>
-              <td style="padding: 10px 14px; color: #cbd5e1; white-space: nowrap; font-family: monospace; font-size: 0.82rem;">${formattedDate}</td>
-              <td style="padding: 10px 14px; text-align: center; white-space: nowrap;">${typeBadge}</td>
-              <td style="padding: 10px 14px; font-family: monospace; font-weight: 700; color: #38bdf8; white-space: nowrap;">
-                <code style="background: rgba(15, 23, 42, 0.8); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">${escapeHtml(log.ip || '-')}</code>
-              </td>
-              <td style="padding: 10px 14px; color: #94a3b8; font-family: monospace; font-size: 0.82rem;">${escapeHtml(log.path || '-')}</td>
-              <td style="padding: 10px 14px; color: #64748b; font-size: 0.78rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${ua}">${ua}</td>
-            </tr>
-          `;
-        }).join('');
+        updateAuditCounts();
+        renderAuditTable();
       } catch (err) {
         tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">오류가 발생했습니다: ${err.message}</td></tr>`;
+        if (pageInfo) pageInfo.textContent = '로그 로드 실패';
       }
     }
 
-    // --- 수동 24시간 이전 감사 로그 정리 ---
-    async function cleanupOldAuditLogs() {
-      if (!confirm('24시간이 경과한 오래된 접속 감사 로그를 데이터베이스에서 정리하시겠습니까?\n(최근 24시간 동안의 로그는 그대로 유지됩니다)')) return;
+    // --- 접속 감사 로그 전체 초기화/정리 ---
+    async function clearAllAuditLogs() {
+      if (!confirm('데이터베이스에 기록된 모든 접속 감사 로그를 초기화(삭제)하시겠습니까?\n(행사 리허설 후 또는 테스트 로그 비우기 시 사용하세요)')) return;
 
       try {
-        const res = await adminFetch('/api/admin/audit-logs/cleanup?hours=24', {
+        const res = await adminFetch('/api/admin/audit-logs/clear-all', {
           method: 'POST'
         });
         if (res.ok) {
-          alert('🧹 24시간이 경과한 오래된 감사 로그가 성공적으로 정리되었습니다.');
+          const data = await res.json();
+          alert(data.message || '🧹 접속 감사 로그가 성공적으로 초기화되었습니다.');
           loadAuditLogs();
         } else {
           alert('로그 정리 실패 (인증 오류)');

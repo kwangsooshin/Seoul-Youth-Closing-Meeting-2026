@@ -6,7 +6,7 @@ from core.config import ADMIN_PASSWORD, DEFAULT_BGM_URL
 from core.state import state
 from core.websocket import manager
 from core.auth import create_admin_token, is_authenticated_admin
-from db import save_prizes, load_prizes, load_history, save_app_config, load_access_logs, cleanup_old_access_logs
+from db import save_prizes, load_prizes, load_history, save_app_config, load_access_logs, cleanup_old_access_logs, clear_all_access_logs
 
 router = APIRouter(prefix="/api", tags=["Admin"])
 
@@ -122,22 +122,38 @@ async def control_bgm(req: BgmControlRequest, request: Request):
 
 
 @router.get("/admin/audit-logs")
-async def get_audit_logs(request: Request, limit: int = 50, password: Optional[str] = None):
+async def get_audit_logs(request: Request, limit: int = 100, password: Optional[str] = None):
     """페이지 접속 감사 로그(Audit Log) 목록 조회 (Bearer 세션 토큰 또는 비밀번호 인증)"""
     if not is_authenticated_admin(request, legacy_password=password):
         raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
-    logs = load_access_logs(limit=min(limit, 200))
+    # limit이 0 이하이거나 미지정 시 최대 1000건(최근 24시간 전체 보관분 수용) 조회
+    effective_limit = 1000 if (limit <= 0 or limit > 1000) else limit
+    logs = load_access_logs(limit=effective_limit)
     return {"success": True, "logs": logs}
 
 
 @router.post("/admin/audit-logs/cleanup")
 async def cleanup_audit_logs_manual(request: Request, hours: int = 24, password: Optional[str] = None):
-    """지정된 시간(기본 24시간) 이전의 감사 로그 수동 정리"""
+    """지정된 시간(기본 24시간) 이전의 감사 로그 수동 정리 (hours=0 시 전체 정리)"""
     if not is_authenticated_admin(request, legacy_password=password):
         raise HTTPException(status_code=401, detail="인증 실패")
 
+    if hours <= 0:
+        deleted_count = clear_all_access_logs()
+        return {"success": True, "message": f"전체 감사 로그 {deleted_count}건을 초기화했습니다."}
+
     cleanup_old_access_logs(hours=hours)
     return {"success": True, "message": f"{hours}시간 경과 감사 로그를 정리했습니다."}
+
+
+@router.post("/admin/audit-logs/clear-all")
+async def clear_all_audit_logs_endpoint(request: Request, password: Optional[str] = None):
+    """모든 접속 감사 로그 전체 초기화/삭제"""
+    if not is_authenticated_admin(request, legacy_password=password):
+        raise HTTPException(status_code=401, detail="인증 실패")
+
+    deleted_count = clear_all_access_logs()
+    return {"success": True, "message": f"전체 접속 감사 로그 {deleted_count}건을 모두 초기화했습니다."}
 
 
