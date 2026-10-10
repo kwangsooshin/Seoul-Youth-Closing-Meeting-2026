@@ -325,6 +325,32 @@
       animation: shake 0.5s ease-in-out;
     }
 
+    .badge-cancel-alert {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #b45309;
+      padding: 8px 20px;
+      border-radius: 999px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      animation: shake 0.4s ease-in-out;
+    }
+
+    .slot-machine-container.is-cancelled {
+      border-color: #f59e0b;
+      box-shadow: 
+        0 0 50px rgba(245, 158, 11, 0.35),
+        inset 0 0 25px rgba(245, 158, 11, 0.12);
+    }
+
+    .lucky-number-display.cancel-text {
+      font-size: 5.5rem;
+      background: linear-gradient(180deg, #b45309 10%, #d97706 50%, #f59e0b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 4px;
+    }
+
     /* 하단 통계 바 */
     .stats-bar {
       z-index: 2;
@@ -1390,6 +1416,31 @@
       } catch (e) {}
     }
 
+    // 당첨 취소 사운드 (되돌리기 안내 톤)
+    function playCancelSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const notes = [
+          { freq: 440, time: 0.0, dur: 0.15 }, // A4
+          { freq: 349.23, time: 0.15, dur: 0.25 } // F4
+        ];
+        notes.forEach(n => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(n.freq, now + n.time);
+          gain.gain.setValueAtTime(0.3, now + n.time);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + n.time + n.dur);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + n.time);
+          osc.stop(now + n.time + n.dur);
+        });
+      } catch (e) {}
+    }
+
     // --- 화려한 폭죽 애니메이션 (Confetti - 청색 & 주황색 브랜드 컬러 테마) ---
     function triggerCelebrationConfetti() {
       const count = 220;
@@ -1604,8 +1655,17 @@
         } else if (msg.type === 'DRAW_CANCELLED') {
           // 관리자가 직전 당첨/패스 취소(롤백) 처리
           const item = msg.item;
+          duckBgm(10, 1800);
+          playCancelSound();
+
+          const slotBox = document.getElementById('slotBox');
+          const numDisplay = document.getElementById('luckyNumberDisplay');
           const statusMsg = document.getElementById('drawStatusMsg');
-          statusMsg.innerHTML = `<span style="color:#f59e0b; font-weight:700;">↩️ #${item.drawn_number}번 [${item.prize_rank}] 내역이 취소되었습니다.</span>`;
+
+          slotBox.className = 'slot-machine-container is-cancelled';
+          numDisplay.textContent = 'CANCEL';
+          numDisplay.className = 'lucky-number-display cancel-text';
+          statusMsg.innerHTML = `<span class="badge-cancel-alert">↩️ #${item.drawn_number}번 [${item.prize_rank}] 추첨 건이 취소되었습니다. (다시 추첨 가능)</span>`;
           renderState(msg.data);
         } else if (msg.type === 'DRAW_PASSED') {
           // 관리자가 부재중 패스 클릭!
