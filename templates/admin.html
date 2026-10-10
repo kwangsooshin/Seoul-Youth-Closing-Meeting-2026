@@ -451,7 +451,7 @@
   <!-- 탭 네비게이션 -->
   <nav class="tabs-nav">
     <button class="tab-button active" onclick="switchTab('startTab', this)">🚀 추첨 시작</button>
-    <button class="tab-button" onclick="switchTab('drawTab', this)">🎯 번호 추첨</button>
+    <button class="tab-button" onclick="switchTab('drawTab', this)">🎯 추첨 진행</button>
     <button class="tab-button" onclick="switchTab('configTab', this)">⚙️ 추첨 설정</button>
     <button class="tab-button" onclick="switchTab('historyTab', this)">📜 추첨 이력 및 초기화</button>
   </nav>
@@ -480,7 +480,7 @@
             ⏸️ 대기화면 켜기
           </button>
           <button id="btnGoToDraw" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.95rem; display: none;" onclick="switchTab('drawTab')">
-            🎯 번호 추첨 화면으로 이동 ↗
+            🎯 추첨 진행 화면으로 이동 ↗
           </button>
         </div>
       </div>
@@ -558,7 +558,7 @@
       </div>
     </section>
 
-    <!-- TAB 2: 번호 추첨 컨트롤러 -->
+    <!-- TAB 2: 추첨 진행 컨트롤러 -->
     <section id="drawTab" class="tab-content">
       <!-- ⏸️ 대기 상태 시 안내 배너 -->
       <div id="waitingAlertBanner" class="card" style="border-color: rgba(245, 144, 30, 0.4); background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(245, 144, 30, 0.12)); margin-bottom: 20px; display: none;">
@@ -1301,7 +1301,7 @@
           badge.style.color = '#34d399';
         }
         if (desc) {
-          desc.innerHTML = '현장 스크린의 대기화면이 해제되었습니다. 이제 <strong>[🎯 번호 추첨]</strong> 탭에서 추첨을 진행할 수 있습니다.';
+          desc.innerHTML = '현장 스크린의 대기화면이 해제되었습니다. 이제 <strong>[🎯 추첨 진행]</strong> 탭에서 추첨을 진행할 수 있습니다.';
         }
         if (btnStart) btnStart.style.display = 'none';
         if (btnPause) btnPause.style.display = 'inline-flex';
