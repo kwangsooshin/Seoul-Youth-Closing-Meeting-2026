@@ -62,6 +62,24 @@ async def admin_page(request: Request, background_tasks: BackgroundTasks):
     return templates.TemplateResponse(request=request, name="admin.html")
 
 
+@router.get("/healthz")
+@router.get("/api/health")
+async def health_check(request: Request, background_tasks: BackgroundTasks):
+    """
+    Render 및 Supabase 활성화 유지(Keep-Alive)를 위한 헬스체크 엔드포인트.
+    UptimeRobot 등의 주기적인 핑 요청 시 접속 감사 로그(access_logs)에 기록하여
+    Render 인스턴스(15분 슬립 방지)와 Supabase 프로젝트를 상시 활성 상태로 유지합니다.
+    """
+    background_tasks.add_task(record_audit, request, "healthcheck")
+    return {
+        "status": "healthy",
+        "service": "seoul-youth-lottery",
+        "keep_alive": True,
+        "client_ip": get_client_ip(request),
+    }
+
+
+
 
 @router.get("/logo.png")
 async def get_logo():

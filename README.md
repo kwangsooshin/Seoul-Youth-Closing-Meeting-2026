@@ -104,4 +104,48 @@ uv run uvicorn main:app --reload --port 8000
    - `SUPABASE_KEY`: (권장) Supabase Key
 6. **Deploy Web Service** 클릭 시 배포가 완료되며 공용 URL이 생성됩니다.
 
+---
+
+## 🤖 5. UptimeRobot 설정 가이드 (Render & Supabase 상시 활성화 / Keep-Alive)
+
+Render 무료 플랜은 **15분 동안 인바운드 트래픽이 없으면 자동으로 슬립(Spin Down)** 상태로 전환되어, 다음 방문 시 50초 이상의 심각한 지연(콜드 스타트)이 발생합니다. 또한 Supabase 무료 플랜 역시 장기간 데이터베이스 쿼리가 없으면 프로젝트가 비활성화(Pause)될 수 있습니다.
+
+무료 모니터링 도구인 **[UptimeRobot](https://uptimerobot.com)**을 연동하면 **Render 웹 서버와 Supabase 데이터베이스 모두를 24시간 중단 없이 상시 활성화 상태로 유지**할 수 있습니다.
+
+### 💡 동작 원리
+UptimeRobot이 주기적으로 `/healthz` 엔드포인트를 호출하면:
+1. **Render 인스턴스 활성화**: HTTP 요청을 수신하여 15분 슬립 타이머가 계속 초기화됩니다.
+2. **Supabase DB 활성화**: `/healthz` 요청 시 데이터베이스의 `access_logs` 테이블에 헬스체크 접속 로그(`page_type: healthcheck`)가 자동으로 기록(INSERT)되므로 Supabase 프로젝트의 Pause가 방지됩니다.
+3. **자동 용량 관리**: 24시간이 지난 오래된 헬스체크 로그는 서버의 백그라운드 스케줄러가 매 시간 자동으로 정리하므로 용량 걱정이 없습니다.
+
+---
+
+### ⚙️ UptimeRobot 등록 단계 (무료)
+
+1. **[UptimeRobot](https://uptimerobot.com)** 회원가입 및 로그인 (무료 플랜 5분 간격 모니터링 50개 제공)
+2. 대시보드 좌측 상단 **[+ Add New Monitor]** 버튼 클릭
+3. 모니터링 설정값 입력:
+   - **Monitor Type**: `HTTP(s)`
+   - **Friendly Name**: `서울청년 추첨 시스템 (Render & Supabase Keep-Alive)`
+   - **URL (or IP)**: `https://<내-Render-도메인>.onrender.com/healthz`  
+     *(예: `https://seoul-youth-lottery.onrender.com/healthz`)*
+   - **Monitoring Interval**: `5 minutes` *(Render 15분 슬립 방지를 위해 5분 권장)*
+   - **Monitor Timeout**: `30 seconds`
+4. 우측 하단 **[Create Monitor]** 클릭하여 등록 완료
+
+---
+
+### 🔍 동작 확인 방법
+- 웹 브라우저에서 직접 `https://<내-Render-도메인>.onrender.com/healthz` 접속 시 아래와 같은 JSON 응답이 반환됩니다:
+  ```json
+  {
+    "status": "healthy",
+    "service": "seoul-youth-lottery",
+    "keep_alive": true,
+    "client_ip": "..."
+  }
+  ```
+- 관리자 콘솔([`/admin`](http://localhost:8000/admin))의 **`📋 접속 감사 로그`** 탭에서 녹색 **`🤖 healthcheck`** 뱃지와 함께 UptimeRobot의 핑 기록이 실시간으로 확인됩니다.
+
+
 

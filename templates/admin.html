@@ -1717,10 +1717,16 @@
         }
 
         tbody.innerHTML = logs.map((log, idx) => {
-          const isDisplay = log.page_type === 'display';
-          const typeBadge = isDisplay
-            ? `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">📺 display</span>`
-            : `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(245, 144, 30, 0.15); color: #f5901e; border: 1px solid rgba(245, 144, 30, 0.3);">🔐 admin</span>`;
+          let typeBadge = '';
+          if (log.page_type === 'display') {
+            typeBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">📺 display</span>`;
+          } else if (log.page_type === 'admin') {
+            typeBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(245, 144, 30, 0.15); color: #f5901e; border: 1px solid rgba(245, 144, 30, 0.3);">🔐 admin</span>`;
+          } else if (log.page_type === 'healthcheck') {
+            typeBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">🤖 healthcheck</span>`;
+          } else {
+            typeBadge = `<span style="display:inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">${escapeHtml(log.page_type || '-')}</span>`;
+          }
 
           const dt = log.created_at ? new Date(log.created_at) : null;
           const formattedDate = dt && !isNaN(dt.getTime())
