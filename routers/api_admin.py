@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from core.config import ADMIN_PASSWORD, DEFAULT_BGM_URL
 from core.state import state
 from core.websocket import manager
-from db import save_prizes, load_prizes, load_history
+from db import save_prizes, load_prizes, load_history, save_app_config
 
 router = APIRouter(prefix="/api", tags=["Admin"])
 
@@ -78,12 +78,18 @@ async def update_config(req: ConfigUpdateRequest):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"등수 저장 실패: {e}")
 
-    # 번호 범위 / BGM 은 메모리에만 반영 (config.json 은 수정하지 않음)
-    state.config = {
+    # 번호 범위 / BGM 설정 DB(Supabase / SQLite)에 영구 저장
+    new_config = {
         "min_number": req.min_number,
         "max_number": req.max_number,
         "bgm_youtube_url": req.bgm_youtube_url or DEFAULT_BGM_URL,
     }
+    try:
+        save_app_config(new_config)
+    except Exception as e:
+        print(f"[WARN] 설정 DB 저장 오류: {e}")
+
+    state.config = new_config
 
     # 상태 브로드캐스트
     stats = state.get_stats()

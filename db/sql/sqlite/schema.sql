@@ -16,3 +16,10 @@ CREATE TABLE IF NOT EXISTS draw_history (
     status TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- app_config 테이블 생성 (번호 범위 및 BGM 등 JSON 설정 저장)
+CREATE TABLE IF NOT EXISTS app_config (
+    id TEXT PRIMARY KEY DEFAULT 'current',
+    data TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

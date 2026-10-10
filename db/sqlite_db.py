@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -22,8 +23,8 @@ def sqlite_connect() -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
-def init_sqlite(default_prizes: List[Dict[str, Any]]):
-    """SQLite 테이블 초기화 및 기본 prizes 시드"""
+def init_sqlite(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[str, Any]] = None):
+    """SQLite 테이블 초기화 및 기본 prizes/config 시드"""
     try:
         with sqlite_connect() as conn:
             conn.executescript(SCHEMA_SQL)
@@ -35,9 +36,38 @@ def init_sqlite(default_prizes: List[Dict[str, Any]]):
                         "INSERT INTO prizes (rank, name, count, sort_order) VALUES (?, ?, ?, ?)",
                         (p["rank"], p.get("name", ""), p["count"], idx),
                     )
+            # app_config 테이블이 비어있으면 초기 config 시드
+            if default_config:
+                cur_cfg = conn.execute("SELECT COUNT(*) FROM app_config WHERE id = 'current'")
+                if cur_cfg.fetchone()[0] == 0:
+                    conn.execute(
+                        "INSERT INTO app_config (id, data) VALUES ('current', ?)",
+                        (json.dumps(default_config, ensure_ascii=False),),
+                    )
             conn.commit()
     except Exception as e:
         print(f"[WARN] SQLite 초기화 오류: {e}")
+
+def load_config_db() -> Optional[Dict[str, Any]]:
+    """SQLite에서 app_config JSON 로드"""
+    try:
+        with sqlite_connect() as conn:
+            row = conn.execute("SELECT data FROM app_config WHERE id = 'current'").fetchone()
+            if row and row["data"]:
+                return json.loads(row["data"])
+    except Exception as e:
+        print(f"[WARN] SQLite config 조회 오류: {e}")
+    return None
+
+def save_config_db(config: Dict[str, Any]):
+    """SQLite에 app_config JSON 저장"""
+    with sqlite_connect() as conn:
+        conn.execute(
+            "INSERT INTO app_config (id, data, updated_at) VALUES ('current', ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP",
+            (json.dumps(config, ensure_ascii=False),)
+        )
+        conn.commit()
 
 def _normalize_prize(row: Dict[str, Any]) -> Dict[str, Any]:
     return {

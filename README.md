@@ -50,11 +50,17 @@ CREATE TABLE draw_history (
     status VARCHAR(20) NOT NULL, -- 'CONFIRMED' 또는 'PASSED'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- 앱 설정 (번호 범위, BGM 링크 등 JSONB 저장)
+CREATE TABLE app_config (
+    id VARCHAR(50) PRIMARY KEY DEFAULT 'current',
+    data JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
 ```
 
-> `prizes` 테이블이 비어 있으면 서버 시작 시 기본 등수(3등/2등/1등)가 자동으로 시드됩니다.
-
-> **`config.json`** 은 번호 범위·BGM 기본값만 담는 파일로, 삭제되어도 기본값(1~200)으로 동작합니다. 관리자 페이지에서 변경한 번호 범위/BGM은 메모리에만 반영되며 파일을 수정하지 않습니다.
+> `prizes` 및 `app_config` 테이블이 비어 있으면 서버 시작 시 기본 등수(3등/2등/1등)와 기본 설정이 자동으로 시드됩니다.
+> 번호 범위·BGM 설정 및 등수 정보는 데이터베이스(Supabase / 로컬 SQLite)에 JSON 형태로 안전하게 영구 저장됩니다.
 
 ---
 

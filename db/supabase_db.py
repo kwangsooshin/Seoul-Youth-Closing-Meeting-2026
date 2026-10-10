@@ -32,6 +32,27 @@ def seed_prizes_if_empty(client, default_prizes: List[Dict[str, Any]]):
         ).execute()
         print("[INFO] Supabase 'prizes' 테이블에 기본 등수를 시드했습니다.")
 
+def seed_config_if_empty(client, default_config: Dict[str, Any]):
+    res = client.table("app_config").select("id").limit(1).execute()
+    if not res.data:
+        client.table("app_config").insert({
+            "id": "current",
+            "data": default_config
+        }).execute()
+        print("[INFO] Supabase 'app_config' 테이블에 기본 설정을 시드했습니다.")
+
+def load_config_db(client) -> Optional[Dict[str, Any]]:
+    res = client.table("app_config").select("data").eq("id", "current").limit(1).execute()
+    if res.data and len(res.data) > 0:
+        return res.data[0]["data"]
+    return None
+
+def save_config_db(client, config: Dict[str, Any]):
+    client.table("app_config").upsert({
+        "id": "current",
+        "data": config
+    }).execute()
+
 def load_prizes(client) -> List[Dict[str, Any]]:
     res = client.table("prizes").select(",".join(PRIZE_FIELDS)).order("sort_order").order("id").execute()
     return [_normalize_prize(r) for r in (res.data or [])]

@@ -17,7 +17,6 @@ if sys.platform == "win32":
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_PATH = BASE_DIR / "config.json"
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin1234")
 
@@ -36,17 +35,7 @@ DEFAULT_PRIZES: List[Dict[str, Any]] = [
     {"rank": "1등", "count": 1, "name": "아이패드 10세대"},
 ]
 
+
 def load_config() -> Dict[str, Any]:
-    """config.json은 읽기 전용 기본값 파일. 없거나 손상되어도 DEFAULT_CONFIG로 동작한다.
-    관리자 페이지에서 변경한 값은 메모리에만 반영되며 파일에 기록하지 않는다."""
-    cfg = dict(DEFAULT_CONFIG)
-    if CONFIG_PATH.exists():
-        try:
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            for key in DEFAULT_CONFIG:
-                if key in data:
-                    cfg[key] = data[key]
-        except Exception as e:
-            print(f"설정 파일 읽기 오류 (기본값 사용): {e}")
-    return cfg
+    """초기 기본 설정 반환 (이후 DB sync_from_db를 통해 Supabase/SQLite에서 로드)"""
+    return dict(DEFAULT_CONFIG)

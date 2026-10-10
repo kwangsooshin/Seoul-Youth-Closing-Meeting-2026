@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from core.config import load_config
-from db import load_prizes, load_history, get_db_info
+from db import load_prizes, load_history, get_db_info, load_app_config
 
 
 class LotteryState:
@@ -14,12 +14,13 @@ class LotteryState:
         self.selected_prize_id: Optional[int] = None  # 관리자가 현재 선택한 추첨 등수 ID
 
     def sync_from_db(self):
-        """DB에서 등수 목록 및 추첨 이력 동기화"""
+        """DB에서 앱 설정, 등수 목록 및 추첨 이력 동기화"""
         try:
+            self.config = load_app_config(self.config)
             self.prizes = load_prizes()
             self.history = load_history()
             info = get_db_info(len(self.history))
-            print(f"[SUCCESS] {info['name']}에서 등수 {len(self.prizes)}개, 이력 {len(self.history)}건을 불러왔습니다.")
+            print(f"[SUCCESS] {info['name']}에서 설정, 등수 {len(self.prizes)}개, 이력 {len(self.history)}건을 불러왔습니다.")
 
             # 선택된 등수가 없거나 유효하지 않으면 미완료 등수 또는 첫 번째 등수로 기본 설정
             if self.prizes:

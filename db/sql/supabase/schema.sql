@@ -18,3 +18,10 @@ CREATE TABLE IF NOT EXISTS draw_history (
     status VARCHAR(20) NOT NULL, -- 'CONFIRMED' 또는 'PASSED'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- app_config 테이블 생성 (번호 범위 및 BGM 등 JSONB 설정 저장)
+CREATE TABLE IF NOT EXISTS app_config (
+    id VARCHAR(50) PRIMARY KEY DEFAULT 'current',
+    data JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);

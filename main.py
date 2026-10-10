@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from core.config import DEFAULT_PRIZES, BASE_DIR
+from core.config import DEFAULT_PRIZES, DEFAULT_CONFIG, BASE_DIR
 from core.state import state
 from db import init_db
 from routers import pages, websocket, api_admin, api_draw
 
 # --- 데이터베이스 초기화 및 인메모리 상태 로드 ---
-init_db(DEFAULT_PRIZES)
+init_db(DEFAULT_PRIZES, DEFAULT_CONFIG)
 state.sync_from_db()
 
 # --- FastAPI 애플리케이션 생성 ---
