@@ -1,0 +1,99 @@
+import os
+from typing import List, Dict, Any, Optional
+
+from . import sqlite_db
+from . import supabase_db
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+supabase_client = None
+use_supabase = False
+
+def init_db(default_prizes: List[Dict[str, Any]]):
+    """DB 초기화: Supabase 우선 검증 후 미설정/실패 시 SQLite 초기화"""
+    global supabase_client, use_supabase
+
+    # 1. 로컬 SQLite 항상 테이블 준비
+    sqlite_db.init_sqlite(default_prizes)
+
+    # 2. Supabase 클라이언트 연결 시도
+    if SUPABASE_URL and SUPABASE_KEY and "your-project" not in SUPABASE_URL:
+        try:
+            from supabase import create_client
+            supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+            print("[SUCCESS] Supabase 클라이언트 연결 시도 성공")
+            # Supabase 테이블 유효성 검사 및 초기 시드
+            supabase_db.seed_prizes_if_empty(supabase_client, default_prizes)
+            supabase_db.load_history(supabase_client)
+            use_supabase = True
+            print("[SUCCESS] Supabase 테이블 연동 완료")
+        except Exception as e:
+            print(f"[INFO] Supabase 연결/테이블 불가 ({e}) -> 로컬 SQLite 모드로 동작합니다.")
+            use_supabase = False
+    else:
+        print("[INFO] Supabase 설정이 없어 로컬 SQLite(lottery.db) 모드로 동작합니다.")
+        use_supabase = False
+
+def load_prizes() -> List[Dict[str, Any]]:
+    global use_supabase
+    if use_supabase and supabase_client:
+        try:
+            return supabase_db.load_prizes(supabase_client)
+        except Exception as e:
+            print(f"[WARN] Supabase 등수 조회 실패 -> SQLite로 대체: {e}")
+            use_supabase = False
+    return sqlite_db.load_prizes()
+
+def load_history() -> List[Dict[str, Any]]:
+    global use_supabase
+    if use_supabase and supabase_client:
+        try:
+            return supabase_db.load_history(supabase_client)
+        except Exception as e:
+            print(f"[WARN] Supabase 이력 조회 실패 -> SQLite로 대체: {e}")
+            use_supabase = False
+    return sqlite_db.load_history()
+
+def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]):
+    global use_supabase
+    if use_supabase and supabase_client:
+        try:
+            supabase_db.save_prizes(supabase_client, prizes, current_prizes)
+            return
+        except Exception as e:
+            print(f"[WARN] Supabase 등수 저장 실패 -> SQLite로 대체 저장: {e}")
+            use_supabase = False
+    sqlite_db.save_prizes(prizes, current_prizes)
+
+def save_record(record: dict, current_prizes: List[Dict[str, Any]]) -> dict:
+    global use_supabase
+    if use_supabase and supabase_client:
+        try:
+            res = supabase_db.save_record(supabase_client, record)
+            if res:
+                return res
+        except Exception as e:
+            print(f"[WARN] Supabase 저장 실패 -> SQLite로 대체 저장: {e}")
+            use_supabase = False
+    return sqlite_db.save_record(record, current_prizes)
+
+def clear_records():
+    global use_supabase
+    if use_supabase and supabase_client:
+        try:
+            supabase_db.clear_records(supabase_client)
+        except Exception as e:
+            print(f"[WARN] Supabase 초기화 오류: {e}")
+
+    try:
+        sqlite_db.clear_records()
+    except Exception as e:
+        print(f"[WARN] SQLite 초기화 오류: {e}")
+
+def get_db_info(history_count: int) -> Dict[str, str]:
+    return {
+        "type": "SUPABASE" if use_supabase else "SQLITE",
+        "name": "Supabase 클라우드" if use_supabase else "로컬 SQLite (lottery.db)",
+        "details": f"테이블: prizes, draw_history ({history_count}건)" if use_supabase else f"파일: lottery.db ({history_count}건)"
+    }
