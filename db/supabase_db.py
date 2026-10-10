@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta, timezone
 
 PRIZE_FIELDS = ("id", "rank", "name", "count", "sort_order")
 SUPABASE_HISTORY_SELECT = "id, prize_id, drawn_number, status, created_at, prizes(rank, name)"
@@ -109,4 +110,18 @@ def load_access_logs(client, limit: int = 100) -> List[Dict[str, Any]]:
     """Supabase access_logs 테이블에서 접속 감사 로그 최신순 조회"""
     res = client.table("access_logs").select("id, ip, page_type, path, user_agent, created_at").order("id", desc=True).limit(limit).execute()
     return res.data or []
+
+def cleanup_old_access_logs(client, hours: int = 24) -> int:
+    """Supabase access_logs 테이블에서 지정 시간(기본 24시간) 이전 로그 자동 삭제"""
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        res = client.table("access_logs").delete().lt("created_at", cutoff).execute()
+        deleted_count = len(res.data) if res.data else 0
+        if deleted_count > 0:
+            print(f"[INFO] Supabase: {deleted_count}건의 {hours}시간 경과 감사 로그를 정리했습니다.")
+        return deleted_count
+    except Exception as e:
+        print(f"[WARN] Supabase 감사 로그 정리 오류: {e}")
+        return 0
+
 

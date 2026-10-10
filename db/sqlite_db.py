@@ -175,3 +175,21 @@ def load_access_logs(limit: int = 100) -> List[Dict[str, Any]]:
         print(f"[WARN] SQLite access log 조회 오류: {e}")
         return []
 
+def cleanup_old_access_logs(hours: int = 24) -> int:
+    """지정된 시간(기본 24시간) 이전의 오래된 접속 감사 로그 자동 삭제"""
+    try:
+        with sqlite_connect() as conn:
+            cur = conn.execute(
+                "DELETE FROM access_logs WHERE created_at < datetime('now', ?)",
+                (f"-{hours} hours",),
+            )
+            deleted_count = cur.rowcount
+            conn.commit()
+            if deleted_count > 0:
+                print(f"[INFO] SQLite: {deleted_count}건의 {hours}시간 경과 감사 로그를 정리했습니다.")
+            return deleted_count
+    except Exception as e:
+        print(f"[WARN] SQLite 감사 로그 정리 오류: {e}")
+        return 0
+
+

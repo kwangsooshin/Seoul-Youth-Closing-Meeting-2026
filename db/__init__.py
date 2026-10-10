@@ -181,3 +181,18 @@ def load_access_logs(limit: int = 100) -> List[Dict[str, Any]]:
             print(f"[WARN] Supabase access log 조회 실패 -> SQLite 대체: {e}")
     return sqlite_db.load_access_logs(limit)
 
+def cleanup_old_access_logs(hours: int = 24):
+    """Supabase 및 SQLite에서 24시간 지난 오래된 접속 감사 로그 자동 정리"""
+    global use_supabase
+    if use_supabase and supabase_client:
+        try:
+            supabase_db.cleanup_old_access_logs(supabase_client, hours)
+        except Exception as e:
+            print(f"[WARN] Supabase 감사 로그 정리 오류: {e}")
+
+    try:
+        sqlite_db.cleanup_old_access_logs(hours)
+    except Exception as e:
+        print(f"[WARN] SQLite 감사 로그 정리 오류: {e}")
+
+

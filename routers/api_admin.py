@@ -1,14 +1,14 @@
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from core.config import ADMIN_PASSWORD, DEFAULT_BGM_URL
 from core.state import state
 from core.websocket import manager
-from db import save_prizes, load_prizes, load_history, save_app_config, load_access_logs
+from core.auth import create_admin_token, is_authenticated_admin
+from db import save_prizes, load_prizes, load_history, save_app_config, load_access_logs, cleanup_old_access_logs
 
 router = APIRouter(prefix="/api", tags=["Admin"])
-
 
 
 class VerifyPasswordRequest(BaseModel):
@@ -18,8 +18,10 @@ class VerifyPasswordRequest(BaseModel):
 @router.post("/admin/verify")
 async def verify_admin(req: VerifyPasswordRequest):
     if req.password == ADMIN_PASSWORD:
-        return {"success": True}
+        token = create_admin_token()
+        return {"success": True, "token": token}
     raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
+
 
 
 @router.get("/state")
@@ -118,11 +120,22 @@ async def control_bgm(req: BgmControlRequest):
 
 
 @router.get("/admin/audit-logs")
-async def get_audit_logs(password: str, limit: int = 50):
-    """페이지 접속 감사 로그(Audit Log) 목록 조회 (관리자 인증 필요)"""
-    if password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="인증 실패")
+async def get_audit_logs(request: Request, limit: int = 50, password: Optional[str] = None):
+    """페이지 접속 감사 로그(Audit Log) 목록 조회 (Bearer 세션 토큰 또는 비밀번호 인증)"""
+    if not is_authenticated_admin(request, legacy_password=password):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     logs = load_access_logs(limit=min(limit, 200))
     return {"success": True, "logs": logs}
+
+
+@router.post("/admin/audit-logs/cleanup")
+async def cleanup_audit_logs_manual(request: Request, hours: int = 24, password: Optional[str] = None):
+    """지정된 시간(기본 24시간) 이전의 감사 로그 수동 정리"""
+    if not is_authenticated_admin(request, legacy_password=password):
+        raise HTTPException(status_code=401, detail="인증 실패")
+
+    cleanup_old_access_logs(hours=hours)
+    return {"success": True, "message": f"{hours}시간 경과 감사 로그를 정리했습니다."}
+
 

@@ -806,10 +806,16 @@
           <span style="display: flex; align-items: center; gap: 8px;">
             <span>📋 페이지 접속 감사 로그 (Audit Logs)</span>
             <span id="auditCountBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-weight: 700;">최근 50건</span>
+            <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #34d399; font-weight: 700;">⏱️ 24시간 자동 보관</span>
           </span>
-          <button class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.85rem; border-color: var(--primary); color: var(--primary-sky); background: rgba(2, 132, 199, 0.1);" onclick="loadAuditLogs()">
-            🔄 새로고침
-          </button>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="cleanupOldAuditLogs()">
+              🧹 24시간 경과 로그 정리
+            </button>
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: var(--primary); color: var(--primary-sky); background: rgba(2, 132, 199, 0.1);" onclick="loadAuditLogs()">
+              🔄 새로고침
+            </button>
+          </div>
         </div>
         <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; line-height: 1.5;">
           현장 송출 스크린(<code>/display</code>) 및 관리자 콘솔(<code>/admin</code>)에 접속한 클라이언트의 접속 IP와 접속 시간을 실시간으로 데이터베이스에 기록한 감사 로그입니다.
@@ -840,9 +846,10 @@
 
   <script>
     let adminPassword = sessionStorage.getItem('admin_pwd') || '';
+    let adminToken = sessionStorage.getItem('admin_token') || '';
     let currentState = null;
 
-    // --- 비밀번호 인증 ---
+    // --- 비밀번호 인증 및 세션 토큰 획득 ---
     async function verifyPassword() {
       const input = document.getElementById('authInput').value;
       const errorMsg = document.getElementById('authErrorMsg');
@@ -853,8 +860,11 @@
           body: JSON.stringify({ password: input })
         });
         if (res.ok) {
+          const data = await res.json();
           adminPassword = input;
+          adminToken = data.token || '';
           sessionStorage.setItem('admin_pwd', adminPassword);
+          if (adminToken) sessionStorage.setItem('admin_token', adminToken);
           document.getElementById('authModal').style.display = 'none';
           initWebSocket();
         } else {
@@ -866,17 +876,24 @@
     }
 
     if (adminPassword) {
-      // 이미 비밀번호가 있으면 자동 검증 시도
+      // 이미 비밀번호가 있으면 자동 검증 및 토큰 갱신
       fetch('/api/admin/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: adminPassword })
       }).then(res => {
         if (res.ok) {
+          res.json().then(data => {
+            if (data.token) {
+              adminToken = data.token;
+              sessionStorage.setItem('admin_token', adminToken);
+            }
+          });
           document.getElementById('authModal').style.display = 'none';
           initWebSocket();
         } else {
           sessionStorage.removeItem('admin_pwd');
+          sessionStorage.removeItem('admin_token');
         }
       });
     }
@@ -1657,7 +1674,7 @@
         .replace(/'/g, '&#39;');
     }
 
-    // --- 접속 감사 로그(Audit Log) 로드 ---
+    // --- 접속 감사 로그(Audit Log) 로드 (헤더 Bearer 토큰 인증) ---
     async function loadAuditLogs() {
       const tbody = document.getElementById('auditLogsTableBody');
       const badge = document.getElementById('auditCountBadge');
@@ -1666,9 +1683,19 @@
       tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--text-muted);">로그를 불러오는 중입니다...</td></tr>`;
 
       try {
-        const res = await fetch(`/api/admin/audit-logs?password=${encodeURIComponent(adminPassword)}&limit=50`);
+        const headers = {};
+        if (adminToken) {
+          headers['Authorization'] = `Bearer ${adminToken}`;
+        } else if (adminPassword) {
+          headers['Authorization'] = `Bearer ${adminPassword}`;
+        }
+
+        // URL에 비밀번호를 포함하지 않고 HTTP Authorization 헤더로 안전하게 요청
+        const res = await fetch(`/api/admin/audit-logs?limit=50`, {
+          headers: headers
+        });
         if (!res.ok) {
-          throw new Error('감사 로그 조회 실패 (인증 실패 또는 서버 오류)');
+          throw new Error('감사 로그 조회 실패 (인증 만료 또는 서버 오류)');
         }
         const data = await res.json();
         const logs = data.logs || [];
@@ -1710,6 +1737,34 @@
         tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">오류가 발생했습니다: ${err.message}</td></tr>`;
       }
     }
+
+    // --- 수동 24시간 이전 감사 로그 정리 ---
+    async function cleanupOldAuditLogs() {
+      if (!confirm('24시간이 경과한 오래된 접속 감사 로그를 데이터베이스에서 정리하시겠습니까?\n(최근 24시간 동안의 로그는 그대로 유지됩니다)')) return;
+
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (adminToken) {
+          headers['Authorization'] = `Bearer ${adminToken}`;
+        } else if (adminPassword) {
+          headers['Authorization'] = `Bearer ${adminPassword}`;
+        }
+
+        const res = await fetch('/api/admin/audit-logs/cleanup?hours=24', {
+          method: 'POST',
+          headers: headers
+        });
+        if (res.ok) {
+          alert('🧹 24시간이 경과한 오래된 감사 로그가 성공적으로 정리되었습니다.');
+          loadAuditLogs();
+        } else {
+          alert('로그 정리 실패 (인증 오류)');
+        }
+      } catch (err) {
+        alert('요청 중 오류가 발생했습니다: ' + err.message);
+      }
+    }
+
   </script>
 </body>
 </html>
