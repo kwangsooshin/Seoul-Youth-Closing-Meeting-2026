@@ -945,23 +945,19 @@
                 }
               } catch (e) {}
 
-              event.target.setVolume(30);
-              // 추첨이 시작되기 전까지는 BGM을 틀지 않음
-              if (isLotteryStarted && soundEnabled) {
+              event.target.setVolume(normalBgmVolume);
+              // BGM은 대기화면과 완전히 독립적으로 동작 (일시정지 상태가 아니면 재생 유지)
+              if (soundEnabled && !isBgmPaused) {
                 forceStartBgm();
-              } else {
-                event.target.pauseVideo();
-                event.target.mute();
-                updateSoundStatusBadge(false, true);
               }
             },
             onStateChange: (event) => {
               // 영상 종료 시 즉시 다시 재생 (무한 반복 보장)
               if (event.data === YT.PlayerState.ENDED) {
-                if (isLotteryStarted) event.target.playVideo();
+                if (!isBgmPaused) event.target.playVideo();
               } else if (event.data === YT.PlayerState.PLAYING) {
                 // 재생 시작 시 음소거 해제 보장
-                if (isLotteryStarted && soundEnabled) {
+                if (soundEnabled && !isBgmPaused) {
                   try { event.target.unMute(); } catch (e) {}
                 }
               }
@@ -973,9 +969,9 @@
       }
     }
 
-    // BGM 강제 재생 및 사운드 활성화 함수
+    // BGM 강제 재생 및 사운드 활성화 함수 (대기화면과 완전히 독립적으로 동작)
     function forceStartBgm() {
-      if (!isLotteryStarted) return;
+      if (isBgmPaused) return;
       if (!ytPlayer) return;
       try {
         ytPlayer.setVolume(normalBgmVolume);
@@ -990,7 +986,7 @@
         let attempts = 0;
         bgmCheckInterval = setInterval(() => {
           attempts++;
-          if (!isLotteryStarted || isBgmPaused) {
+          if (isBgmPaused) {
             clearInterval(bgmCheckInterval);
             bgmCheckInterval = null;
             return;
@@ -1019,7 +1015,7 @@
       }
     }
 
-    // 추첨 세션(대기 vs 진행) 상태 전환 함수 (BGM은 독립적으로 동작하며 건들지 않음)
+    // 대기화면 상태 전환 함수 (대기화면 오버레이만 제어하며 BGM은 전혀 건드리지 않음)
     function setLotterySessionState(started) {
       isLotteryStarted = Boolean(started);
       const overlay = document.getElementById('standbyOverlay');
@@ -1047,7 +1043,7 @@
 
     function duckBgm(targetVol = 10, durationMs = 3800) {
       if (!ytPlayer || !ytPlayer.setVolume) return;
-      if (!soundEnabled || !isLotteryStarted) return;
+      if (!soundEnabled || isBgmPaused) return;
 
       isDucking = true;
       if (duckRestoreTimer) clearTimeout(duckRestoreTimer);
@@ -1065,7 +1061,7 @@
 
     function fadeRestoreBgm(startVol = 5) {
       if (!ytPlayer || !ytPlayer.setVolume) return;
-      if (!soundEnabled || !isLotteryStarted) return;
+      if (!soundEnabled || isBgmPaused) return;
 
       if (duckFadeInterval) clearInterval(duckFadeInterval);
 
