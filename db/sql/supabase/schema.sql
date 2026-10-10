@@ -25,3 +25,9 @@ CREATE TABLE IF NOT EXISTS app_config (
     data JSONB NOT NULL, -- JSONB 형식 설정 데이터
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- 4. API 역할(service_role, anon, authenticated) 접근 및 시퀀스 권한 부여
+GRANT ALL ON TABLE prizes TO service_role, anon, authenticated;
+GRANT ALL ON TABLE draw_history TO service_role, anon, authenticated;
+GRANT ALL ON TABLE app_config TO service_role, anon, authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role, anon, authenticated;
