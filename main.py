@@ -347,7 +347,7 @@ async def start_draw(req: DrawStartRequest):
         raise HTTPException(status_code=401, detail="인증 실패")
 
     if not is_lottery_started:
-        raise HTTPException(status_code=400, detail="현장 추첨이 아직 공식 시작되지 않았습니다. 먼저 '현장 추첨 공식 시작' 버튼을 눌러주세요.")
+        raise HTTPException(status_code=400, detail="현재 대기화면 상태입니다. 먼저 '대기화면 해제'를 해주세요.")
 
     if current_pending_draw is not None:
         return {"success": False, "message": "이미 진행 중인 추첨 번호가 있습니다. 확정 또는 패스를 먼저 처리하세요.", "current": current_pending_draw}
@@ -441,7 +441,7 @@ async def cancel_last_draw(req: DrawActionRequest):
         raise HTTPException(status_code=401, detail="인증 실패")
 
     if not is_lottery_started:
-        raise HTTPException(status_code=400, detail="현장 추첨이 시작되지 않은 대기 상태에서는 취소할 수 없습니다.")
+        raise HTTPException(status_code=400, detail="현재 대기화면 상태에서는 취소할 수 없습니다. 먼저 '대기화면 해제'를 해주세요.")
 
     if not draw_history:
         raise HTTPException(status_code=400, detail="취소할 수 있는 최근 추첨 내역이 없습니다.")
