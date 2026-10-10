@@ -465,19 +465,19 @@
         <div class="card-title" style="margin-bottom: 8px;">
           <span style="display:flex; align-items:center; gap:8px;">
             <span style="color: var(--primary-sky);">🚀 현장 추첨 세션 제어</span>
-            <span id="sessionStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(245, 144, 30, 0.2); color: #f5901e; font-weight: 700;">대기 상태 (BGM OFF)</span>
+            <span id="sessionStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(245, 144, 30, 0.2); color: #f5901e; font-weight: 700;">대기 상태</span>
           </span>
         </div>
         <p id="sessionStatusDesc" style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 14px; line-height: 1.5;">
-          현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면이며 BGM이 꺼져 있습니다.<br>
-          행사가 시작되면 아래 <strong>[🎉 현장 추첨 공식 시작]</strong> 버튼을 눌러 스크린을 활성화하고 배경음악을 켜주세요.
+          현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면입니다.<br>
+          행사가 시작되면 아래 <strong>[🎉 현장 추첨 공식 시작]</strong> 버튼을 눌러 스크린을 활성화해주세요.
         </p>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="btnStartLotterySession" class="btn btn-orange" style="padding: 12px 28px; font-size: 1.05rem; background: linear-gradient(135deg, #0284c7 0%, #f5901e 100%); border: none; font-weight: 700; box-shadow: 0 4px 16px rgba(245, 144, 30, 0.35);" onclick="toggleLotterySession(true)">
-            🎉 현장 추첨 공식 시작 (대기 화면 해제 & BGM 켜기)
+            🎉 현장 추첨 공식 시작 (대기 화면 해제)
           </button>
           <button id="btnPauseLotterySession" class="btn btn-secondary" style="padding: 10px 18px; font-size: 0.88rem; display: none;" onclick="toggleLotterySession(false)">
-            ⏸️ 대기 화면으로 되돌리기 (BGM 끄기)
+            ⏸️ 대기 화면으로 되돌리기
           </button>
           <button id="btnGoToDraw" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.95rem; display: none;" onclick="switchTab('drawTab')">
             🎯 번호 추첨 화면으로 이동 ↗
@@ -1266,12 +1266,7 @@
         if (res.ok) {
           const data = await res.json();
           updateSessionUI(data.started);
-          // 시작 시 음악도 자동으로 30%로 켜주기
-          if (started) {
-            controlBgm('play', 30);
-          } else {
-            controlBgm('pause');
-          }
+          // 추첨 시작/대기 전환 시 BGM은 독립적으로 두고 건들지 않음
         } else {
           const err = await res.json();
           alert(err.detail || '세션 변경 실패');
@@ -1295,24 +1290,24 @@
 
       if (started) {
         if (badge) {
-          badge.textContent = '🟢 추첨 진행 중 (BGM ON)';
+          badge.textContent = '🟢 추첨 진행 중';
           badge.style.background = 'rgba(16, 185, 129, 0.2)';
           badge.style.color = '#34d399';
         }
         if (desc) {
-          desc.innerHTML = '현장 스크린의 대기 화면이 해제되었으며 <strong>배경음악(BGM 30%)과 추첨 시스템이 활성화</strong>되었습니다. 이제 <strong>[🎯 번호 추첨]</strong> 탭에서 추첨을 진행할 수 있습니다.';
+          desc.innerHTML = '현장 스크린의 대기 화면이 해제되었으며 <strong>추첨 시스템이 활성화</strong>되었습니다. 이제 <strong>[🎯 번호 추첨]</strong> 탭에서 추첨을 진행할 수 있습니다.';
         }
         if (btnStart) btnStart.style.display = 'none';
         if (btnPause) btnPause.style.display = 'inline-flex';
         if (btnGoToDraw) btnGoToDraw.style.display = 'inline-flex';
       } else {
         if (badge) {
-          badge.textContent = '⏸️ 대기 상태 (BGM OFF)';
+          badge.textContent = '⏸️ 대기 상태';
           badge.style.background = 'rgba(245, 158, 11, 0.2)';
           badge.style.color = '#fbbf24';
         }
         if (desc) {
-          desc.innerHTML = '현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면이며 BGM이 꺼져 있습니다.<br>행사가 시작되면 아래 <strong>[🎉 현장 추첨 공식 시작]</strong> 버튼을 눌러 스크린을 활성화하고 배경음악을 켜주세요.';
+          desc.innerHTML = '현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면입니다.<br>행사가 시작되면 아래 <strong>[🎉 현장 추첨 공식 시작]</strong> 버튼을 눌러 스크린을 활성화해주세요.';
         }
         if (btnStart) btnStart.style.display = 'inline-flex';
         if (btnPause) btnPause.style.display = 'none';

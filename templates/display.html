@@ -1019,21 +1019,14 @@
       }
     }
 
-    // 추첨 세션(대기 vs 진행) 상태 전환 함수
+    // 추첨 세션(대기 vs 진행) 상태 전환 함수 (BGM은 독립적으로 동작하며 건들지 않음)
     function setLotterySessionState(started) {
       isLotteryStarted = Boolean(started);
-      isBgmPaused = false;
       const overlay = document.getElementById('standbyOverlay');
       if (isLotteryStarted) {
         if (overlay) overlay.classList.add('hidden');
-        updateSoundStatusBadge(true);
-        forceStartBgm();
       } else {
         if (overlay) overlay.classList.remove('hidden');
-        updateSoundStatusBadge(false, true);
-        if (ytPlayer && ytPlayer.pauseVideo) {
-          try { ytPlayer.pauseVideo(); ytPlayer.mute(); } catch (e) {}
-        }
       }
     }
 
@@ -1121,11 +1114,7 @@
 
       let state;
       badge.classList.remove('muted', 'standby', 'paused');
-      if (isStandby || !isLotteryStarted) {
-        badge.classList.add('standby');
-        icon.textContent = '⏳';
-        state = '추첨 대기 중 (BGM OFF)';
-      } else if (!soundEnabled) {
+      if (!soundEnabled) {
         badge.classList.add('muted');
         icon.textContent = '🔇';
         state = '사운드 OFF (음소거)';
@@ -1621,7 +1610,7 @@
     // 초기 실행
     window.addEventListener('DOMContentLoaded', () => {
       connectWebSocket();
-      updateSoundStatusBadge(false, true); // 관리자가 추첨 시작 버튼을 누르기 전까지 대기 상태
+      updateSoundStatusBadge(true);
     });
   </script>
 </body>
