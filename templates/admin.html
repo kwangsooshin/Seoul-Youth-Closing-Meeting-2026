@@ -970,15 +970,45 @@
     function resetDrawControlsToIdle() {
       if (rollingTimer) clearTimeout(rollingTimer);
       isScreenRolling = false;
-      document.getElementById('actionStatusLabel').textContent = '[번호 뽑기] 버튼을 누르면 현장 스크린에 롤링 애니메이션이 시작됩니다.';
       const preview = document.getElementById('drawnPreviewNumber');
       preview.textContent = '대기 중';
       preview.className = 'drawn-preview-number empty';
       document.getElementById('targetPrizeBadge').textContent = '-';
 
-      document.getElementById('btnDrawStart').style.display = 'inline-flex';
-      document.getElementById('confirmPassGroup').style.display = 'none';
+      const btnDrawStart = document.getElementById('btnDrawStart');
+      const actionLabel = document.getElementById('actionStatusLabel');
       const undoGroup = document.getElementById('undoLastGroup');
+      const btnCancelLast = document.getElementById('btnCancelLast');
+
+      btnDrawStart.style.display = 'inline-flex';
+      document.getElementById('confirmPassGroup').style.display = 'none';
+
+      const isStarted = Boolean(currentState && currentState.is_lottery_started);
+
+      if (!isStarted) {
+        actionLabel.innerHTML = '⏸️ <strong style="color:var(--accent-orange);">현재 대기 상태입니다.</strong> 상단의 <strong>[🎉 현장 추첨 공식 시작]</strong> 버튼을 먼저 눌러주세요.';
+        btnDrawStart.disabled = true;
+        btnDrawStart.style.opacity = '0.45';
+        btnDrawStart.style.cursor = 'not-allowed';
+        btnDrawStart.title = "상단의 '현장 추첨 공식 시작' 버튼을 눌러 스크린을 활성화한 후 추첨할 수 있습니다.";
+        if (btnCancelLast) {
+          btnCancelLast.disabled = true;
+          btnCancelLast.style.opacity = '0.45';
+          btnCancelLast.style.cursor = 'not-allowed';
+        }
+      } else {
+        actionLabel.textContent = '[번호 뽑기] 버튼을 누르면 현장 스크린에 롤링 애니메이션이 시작됩니다.';
+        btnDrawStart.disabled = false;
+        btnDrawStart.style.opacity = '1';
+        btnDrawStart.style.cursor = 'pointer';
+        btnDrawStart.title = "";
+        if (btnCancelLast) {
+          btnCancelLast.disabled = false;
+          btnCancelLast.style.opacity = '1';
+          btnCancelLast.style.cursor = 'pointer';
+        }
+      }
+
       if (undoGroup && currentState && currentState.history && currentState.history.length > 0) {
         undoGroup.style.display = 'block';
       }
@@ -987,6 +1017,10 @@
     // --- 추첨 제어 API 호출 ---
     async function triggerDrawStart() {
       if (!currentState) return;
+      if (!currentState.is_lottery_started) {
+        alert("⚠️ 현장 추첨이 아직 공식 시작되지 않았습니다.\n상단의 [🎉 현장 추첨 공식 시작] 버튼을 먼저 눌러주세요.");
+        return;
+      }
       const select = document.getElementById('prizeSelect');
       const curPrize = currentState.prize_status[select.value];
       if (!curPrize) return;
@@ -1059,6 +1093,10 @@
     async function triggerCancelLast() {
       if (!currentState || !currentState.history || currentState.history.length === 0) {
         alert('취소할 수 있는 최근 추첨 내역이 없습니다.');
+        return;
+      }
+      if (!currentState.is_lottery_started) {
+        alert("⚠️ 현장 추첨이 시작되지 않은 대기 상태에서는 취소할 수 없습니다.\n상단의 [🎉 현장 추첨 공식 시작] 버튼을 먼저 눌러주세요.");
         return;
       }
       const last = currentState.history[currentState.history.length - 1];
