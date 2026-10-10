@@ -450,16 +450,16 @@
 
   <!-- 탭 네비게이션 -->
   <nav class="tabs-nav">
-    <button class="tab-button active" onclick="switchTab('drawTab', this)">🎯 추첨 진행</button>
+    <button class="tab-button active" onclick="switchTab('startTab', this)">🚀 추첨 시작</button>
+    <button class="tab-button" onclick="switchTab('drawTab', this)">🎯 번호 추첨</button>
     <button class="tab-button" onclick="switchTab('configTab', this)">⚙️ 추첨 설정</button>
     <button class="tab-button" onclick="switchTab('historyTab', this)">📜 추첨 이력 및 초기화</button>
-    <button class="tab-button" onclick="switchTab('soundTab', this)">🎵 음악 & 사운드</button>
   </nav>
 
   <!-- 메인 영역 -->
   <main>
-    <!-- TAB 1: 추첨 진행 컨트롤러 -->
-    <section id="drawTab" class="tab-content active">
+    <!-- TAB 1: 🚀 추첨 시작 (세션 제어 및 BGM/사운드 통합 설정) -->
+    <section id="startTab" class="tab-content active">
       <!-- 🚀 현장 추첨 공식 시작 / 대기 전환 카드 -->
       <div id="lotterySessionCard" class="card" style="border-color: rgba(2, 132, 199, 0.45); background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(2, 132, 199, 0.15)); margin-bottom: 20px;">
         <div class="card-title" style="margin-bottom: 8px;">
@@ -470,7 +470,7 @@
         </div>
         <p id="sessionStatusDesc" style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 14px; line-height: 1.5;">
           현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면이며 BGM이 꺼져 있습니다.<br>
-          행사가 시작되면 아래 <strong>[🎉 현장 추첨 시작하기]</strong> 버튼을 눌러 스크린을 활성화하고 배경음악을 켜주세요.
+          행사가 시작되면 아래 <strong>[🎉 현장 추첨 공식 시작]</strong> 버튼을 눌러 스크린을 활성화하고 배경음악을 켜주세요.
         </p>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="btnStartLotterySession" class="btn btn-orange" style="padding: 12px 28px; font-size: 1.05rem; background: linear-gradient(135deg, #0284c7 0%, #f5901e 100%); border: none; font-weight: 700; box-shadow: 0 4px 16px rgba(245, 144, 30, 0.35);" onclick="toggleLotterySession(true)">
@@ -478,6 +478,101 @@
           </button>
           <button id="btnPauseLotterySession" class="btn btn-secondary" style="padding: 10px 18px; font-size: 0.88rem; display: none;" onclick="toggleLotterySession(false)">
             ⏸️ 대기 화면으로 되돌리기 (BGM 끄기)
+          </button>
+          <button id="btnGoToDraw" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.95rem; display: none;" onclick="switchTab('drawTab')">
+            🎯 번호 추첨 화면으로 이동 ↗
+          </button>
+        </div>
+      </div>
+
+      <!-- 🎵 현장 사운드 & BGM 실시간 원격 제어 카드 -->
+      <div class="card" style="border-color: rgba(2, 132, 199, 0.45); background: rgba(30, 41, 59, 0.95); margin-bottom: 20px;">
+        <div class="card-title" style="margin-bottom: 12px;">
+          <span style="display:flex; align-items:center; gap:8px;">
+            <span style="color: var(--primary-sky);">🎵 현장 사운드 & 배경음악(BGM) 실시간 제어</span>
+            <span id="bgmStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(2, 132, 199, 0.2); color: #38bdf8; font-weight: 700;">🟢 소리 ON</span>
+          </span>
+          <span style="font-size:0.85rem; color: var(--accent-orange); font-weight: 700;" id="bgmVolLabel">볼륨: 30%</span>
+        </div>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px;">
+          송출 화면(Display)의 사운드 ON/OFF, 음량 및 BGM 재생이 실시간으로 원격 동기화됩니다.
+        </p>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
+          <button class="btn btn-primary" style="padding: 10px 20px; font-size: 0.95rem;" onclick="controlBgm('play')">
+            ▶️ 음악 재생
+          </button>
+          <button class="btn btn-secondary" style="padding: 10px 20px; font-size: 0.95rem;" onclick="controlBgm('pause')">
+            ⏸️ 일시 정지
+          </button>
+          <button class="btn btn-secondary" style="padding: 10px 16px; font-size: 0.95rem;" id="btnBgmToggleMute" onclick="toggleBgmMute()">
+            🔇 음소거 (사운드 OFF)
+          </button>
+        </div>
+
+        <!-- 슬라이더 & 빠른 볼륨 조절 프리셋 -->
+        <div style="background: rgba(0, 0, 0, 0.25); padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08);">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <span style="font-size: 1rem;">🔈</span>
+            <input type="range" id="bgmVolumeSlider" min="0" max="100" value="30" style="flex:1; cursor: pointer; accent-color: var(--accent-orange);" oninput="onBgmVolumeChange(this.value)">
+            <span style="font-size: 1rem;">🔊</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
+            <span style="font-size: 0.78rem; color: #94a3b8; margin-right: 4px;">빠른 조절:</span>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(15)">15% (작게)</button>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245, 144, 30, 0.1);" onclick="setBgmVolumePreset(30)">30% (권장 기본)</button>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(50)">50% (보통)</button>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(70)">70% (크게)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🎶 배경음악 (YouTube BGM) 음원 설정 카드 -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">
+          <span>🎶 배경음악 (YouTube BGM) 음원 설정</span>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 6px; font-size: 0.9rem; color: #cbd5e1;">YouTube 영상 링크 (현장 스크린에서 무한 반복 재생됩니다)</label>
+          <input type="text" id="cfgYoutube" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=ujCh9JIxCeA" style="width: 100%;">
+          <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 6px;">
+            기본 추천: <a href="https://www.youtube.com/watch?v=ujCh9JIxCeA" target="_blank" style="color: var(--primary-sky); text-decoration: underline;">Lucky Draw Music (행사 추첨 긴장감 & 축하 BGM)</a>
+          </small>
+        </div>
+        <div style="text-align: right;">
+          <button class="btn btn-orange" onclick="saveBgmOnly()">💾 BGM 음원 링크 저장하기</button>
+        </div>
+      </div>
+
+      <!-- 🎚️ 사운드 연출 안내 카드 (Audio Ducking) -->
+      <div class="card" style="border-color: rgba(56, 189, 248, 0.3); background: rgba(15, 23, 42, 0.8);">
+        <div class="card-title" style="margin-bottom: 8px;">
+          <span>🎚️ 스마트 오디오 덕킹(Audio Ducking) 연출 안내</span>
+          <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-weight: 700;">자동 적용 중</span>
+        </div>
+        <ul style="font-size: 0.85rem; color: #94a3b8; line-height: 1.6; padding-left: 20px;">
+          <li><strong>기본 배경음악:</strong> 평상시 볼륨 <strong>30%</strong>로 은은하게 재생됩니다.</li>
+          <li><strong>추첨 롤링 시:</strong> 번호가 회전하는 동안 BGM이 <strong>10%</strong>로 자동 축소되어 긴장감 틱 효과음이 또렷이 들립니다.</li>
+          <li><strong>당첨 안착 & 팡파레 시:</strong> 당첨 번호가 확정되는 순간 BGM이 <strong>5%</strong>로 극소화되어 웅장한 축하 팡파레가 극대화됩니다.</li>
+          <li><strong>종료 후:</strong> 팡파레가 끝나면 부드럽게 원래 볼륨(30%)으로 자연스럽게 페이드인 복원됩니다.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- TAB 2: 번호 추첨 컨트롤러 -->
+    <section id="drawTab" class="tab-content">
+      <!-- ⏸️ 대기 상태 시 안내 배너 -->
+      <div id="waitingAlertBanner" class="card" style="border-color: rgba(245, 144, 30, 0.4); background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(245, 144, 30, 0.12)); margin-bottom: 20px; display: none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <div style="font-weight:700; color:var(--accent-orange); font-size:1rem; margin-bottom:4px;">
+              ⏸️ 현재 현장 추첨 대기 상태입니다
+            </div>
+            <div style="font-size:0.88rem; color:#cbd5e1;">
+              현장 송출 스크린이 대기 화면 상태입니다. 상단의 <strong>[🚀 추첨 시작]</strong> 탭에서 공식 시작 버튼을 눌러 스크린을 활성화해주세요.
+            </div>
+          </div>
+          <button class="btn btn-orange" style="padding: 8px 18px; font-size: 0.9rem;" onclick="switchTab('startTab')">
+            🚀 추첨 시작 탭으로 이동
           </button>
         </div>
       </div>
@@ -542,7 +637,7 @@
       </div>
     </section>
 
-    <!-- TAB 2: 추첨 환경 설정 -->
+    <!-- TAB 3: 추첨 환경 설정 -->
     <section id="configTab" class="tab-content">
       <div class="card">
         <div class="card-title">
@@ -577,7 +672,7 @@
       </div>
     </section>
 
-    <!-- TAB 3: 추첨 이력 및 초기화 -->
+    <!-- TAB 4: 추첨 이력 및 초기화 -->
     <section id="historyTab" class="tab-content">
       <!-- 💾 현재 DB 저장소 상태 안내 카드 -->
       <div class="card" style="margin-bottom: 20px; border-color: rgba(56, 189, 248, 0.35); background: rgba(15, 23, 42, 0.9);">
@@ -619,81 +714,6 @@
           모든 추첨 기록(확정 및 패스)을 삭제하고 처음 상태로 되돌립니다. 행사가 끝났거나 리허설 후 본 행사 시작 전에만 사용하세요.
         </p>
         <button class="btn btn-danger" onclick="triggerResetAll()">전체 데이터 초기화</button>
-      </div>
-    </section>
-
-    <!-- TAB 4: 음악 및 음량(사운드) 전용 설정 -->
-    <section id="soundTab" class="tab-content">
-      <!-- 🎵 현장 사운드 & BGM 실시간 원격 제어 카드 -->
-      <div class="card" style="border-color: rgba(2, 132, 199, 0.45); background: rgba(30, 41, 59, 0.95); margin-bottom: 20px;">
-        <div class="card-title" style="margin-bottom: 12px;">
-          <span style="display:flex; align-items:center; gap:8px;">
-            <span style="color: var(--primary-sky);">🎵 현장 사운드 & 배경음악(BGM) 실시간 제어</span>
-            <span id="bgmStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(2, 132, 199, 0.2); color: #38bdf8; font-weight: 700;">🟢 소리 ON</span>
-          </span>
-          <span style="font-size:0.85rem; color: var(--accent-orange); font-weight: 700;" id="bgmVolLabel">볼륨: 30%</span>
-        </div>
-        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px;">
-          송출 화면(Display)의 사운드 ON/OFF, 음량 및 BGM 재생이 실시간으로 원격 동기화됩니다.
-        </p>
-        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
-          <button class="btn btn-primary" style="padding: 10px 20px; font-size: 0.95rem;" onclick="controlBgm('play')">
-            ▶️ 음악 재생
-          </button>
-          <button class="btn btn-secondary" style="padding: 10px 20px; font-size: 0.95rem;" onclick="controlBgm('pause')">
-            ⏸️ 일시 정지
-          </button>
-          <button class="btn btn-secondary" style="padding: 10px 16px; font-size: 0.95rem;" id="btnBgmToggleMute" onclick="toggleBgmMute()">
-            🔇 음소거 (사운드 OFF)
-          </button>
-        </div>
-
-        <!-- 슬라이더 & 빠른 볼륨 조절 프리셋 -->
-        <div style="background: rgba(0, 0, 0, 0.25); padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08);">
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-            <span style="font-size: 1rem;">🔈</span>
-            <input type="range" id="bgmVolumeSlider" min="0" max="100" value="30" style="flex:1; cursor: pointer; accent-color: var(--accent-orange);" oninput="onBgmVolumeChange(this.value)">
-            <span style="font-size: 1rem;">🔊</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
-            <span style="font-size: 0.78rem; color: #94a3b8; margin-right: 4px;">빠른 조절:</span>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(15)">15% (작게)</button>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem; border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245, 144, 30, 0.1);" onclick="setBgmVolumePreset(30)">30% (권장 기본)</button>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(50)">50% (보통)</button>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(70)">70% (크게)</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 🎶 배경음악 (YouTube BGM) 음원 설정 카드 -->
-      <div class="card" style="margin-bottom: 20px;">
-        <div class="card-title">
-          <span>🎶 배경음악 (YouTube BGM) 음원 설정</span>
-        </div>
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; margin-bottom: 6px; font-size: 0.9rem; color: #cbd5e1;">YouTube 영상 링크 (현장 스크린에서 무한 반복 재생됩니다)</label>
-          <input type="text" id="cfgYoutube" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=ujCh9JIxCeA" style="width: 100%;">
-          <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 6px;">
-            기본 추천: <a href="https://www.youtube.com/watch?v=ujCh9JIxCeA" target="_blank" style="color: var(--primary-sky); text-decoration: underline;">Lucky Draw Music (행사 추첨 긴장감 & 축하 BGM)</a>
-          </small>
-        </div>
-        <div style="text-align: right;">
-          <button class="btn btn-orange" onclick="saveBgmOnly()">💾 BGM 음원 링크 저장하기</button>
-        </div>
-      </div>
-
-      <!-- 🎚️ 사운드 연출 안내 카드 (Audio Ducking) -->
-      <div class="card" style="border-color: rgba(56, 189, 248, 0.3); background: rgba(15, 23, 42, 0.8);">
-        <div class="card-title" style="margin-bottom: 8px;">
-          <span>🎚️ 스마트 오디오 덕킹(Audio Ducking) 연출 안내</span>
-          <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-weight: 700;">자동 적용 중</span>
-        </div>
-        <ul style="font-size: 0.85rem; color: #94a3b8; line-height: 1.6; padding-left: 20px;">
-          <li><strong>기본 배경음악:</strong> 평상시 볼륨 <strong>30%</strong>로 은은하게 재생됩니다.</li>
-          <li><strong>추첨 롤링 시:</strong> 번호가 회전하는 동안 BGM이 <strong>10%</strong>로 자동 축소되어 긴장감 틱 효과음이 또렷이 들립니다.</li>
-          <li><strong>당첨 안착 & 팡파레 시:</strong> 당첨 번호가 확정되는 순간 BGM이 <strong>5%</strong>로 극소화되어 웅장한 축하 팡파레가 극대화됩니다.</li>
-          <li><strong>종료 후:</strong> 팡파레가 끝나면 부드럽게 원래 볼륨(30%)으로 자연스럽게 페이드인 복원됩니다.</li>
-        </ul>
       </div>
     </section>
   </main>
@@ -745,8 +765,14 @@
     function switchTab(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      btn.classList.add('active');
+      const targetContent = document.getElementById(tabId);
+      if (targetContent) targetContent.classList.add('active');
+      if (btn) {
+        btn.classList.add('active');
+      } else {
+        const targetBtn = document.querySelector(`.tab-button[onclick*="'${tabId}'"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+      }
     }
 
     // --- WebSocket 실시간 연동 ---
@@ -986,11 +1012,11 @@
       const isStarted = Boolean(currentState && currentState.is_lottery_started);
 
       if (!isStarted) {
-        actionLabel.innerHTML = '⏸️ <strong style="color:var(--accent-orange);">현재 대기 상태입니다.</strong> 상단의 <strong>[🎉 현장 추첨 공식 시작]</strong> 버튼을 먼저 눌러주세요.';
+        actionLabel.innerHTML = '⏸️ <strong style="color:var(--accent-orange);">현재 대기 상태입니다.</strong> <strong>[🚀 추첨 시작]</strong> 탭에서 공식 시작 버튼을 먼저 눌러주세요.';
         btnDrawStart.disabled = true;
         btnDrawStart.style.opacity = '0.45';
         btnDrawStart.style.cursor = 'not-allowed';
-        btnDrawStart.title = "상단의 '현장 추첨 공식 시작' 버튼을 눌러 스크린을 활성화한 후 추첨할 수 있습니다.";
+        btnDrawStart.title = "추첨 시작 탭에서 '현장 추첨 공식 시작' 버튼을 눌러 스크린을 활성화한 후 추첨할 수 있습니다.";
         if (btnCancelLast) {
           btnCancelLast.disabled = true;
           btnCancelLast.style.opacity = '0.45';
@@ -1018,7 +1044,7 @@
     async function triggerDrawStart() {
       if (!currentState) return;
       if (!currentState.is_lottery_started) {
-        alert("⚠️ 현장 추첨이 아직 공식 시작되지 않았습니다.\n상단의 [🎉 현장 추첨 공식 시작] 버튼을 먼저 눌러주세요.");
+        alert("⚠️ 현장 추첨이 아직 공식 시작되지 않았습니다.\n상단의 [🚀 추첨 시작] 탭에서 공식 시작 버튼을 먼저 눌러주세요.");
         return;
       }
       const select = document.getElementById('prizeSelect');
@@ -1096,7 +1122,7 @@
         return;
       }
       if (!currentState.is_lottery_started) {
-        alert("⚠️ 현장 추첨이 시작되지 않은 대기 상태에서는 취소할 수 없습니다.\n상단의 [🎉 현장 추첨 공식 시작] 버튼을 먼저 눌러주세요.");
+        alert("⚠️ 현장 추첨이 시작되지 않은 대기 상태에서는 취소할 수 없습니다.\n상단의 [🚀 추첨 시작] 탭에서 공식 시작 버튼을 먼저 눌러주세요.");
         return;
       }
       const last = currentState.history[currentState.history.length - 1];
@@ -1260,6 +1286,13 @@
       const desc = document.getElementById('sessionStatusDesc');
       const btnStart = document.getElementById('btnStartLotterySession');
       const btnPause = document.getElementById('btnPauseLotterySession');
+      const btnGoToDraw = document.getElementById('btnGoToDraw');
+      const waitingBanner = document.getElementById('waitingAlertBanner');
+
+      if (waitingBanner) {
+        waitingBanner.style.display = started ? 'none' : 'block';
+      }
+
       if (started) {
         if (badge) {
           badge.textContent = '🟢 추첨 진행 중 (BGM ON)';
@@ -1267,10 +1300,11 @@
           badge.style.color = '#34d399';
         }
         if (desc) {
-          desc.innerHTML = '현장 스크린의 대기 화면이 해제되었으며 <strong>배경음악(BGM 30%)과 추첨 시스템이 활성화</strong>되었습니다.';
+          desc.innerHTML = '현장 스크린의 대기 화면이 해제되었으며 <strong>배경음악(BGM 30%)과 추첨 시스템이 활성화</strong>되었습니다. 이제 <strong>[🎯 번호 추첨]</strong> 탭에서 추첨을 진행할 수 있습니다.';
         }
         if (btnStart) btnStart.style.display = 'none';
         if (btnPause) btnPause.style.display = 'inline-flex';
+        if (btnGoToDraw) btnGoToDraw.style.display = 'inline-flex';
       } else {
         if (badge) {
           badge.textContent = '⏸️ 대기 상태 (BGM OFF)';
@@ -1278,10 +1312,11 @@
           badge.style.color = '#fbbf24';
         }
         if (desc) {
-          desc.innerHTML = '현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면이며 BGM이 꺼져 있습니다.<br>행사가 시작되면 아래 <strong>[🎉 현장 추첨 시작하기]</strong> 버튼을 눌러 스크린을 활성화하고 배경음악을 켜주세요.';
+          desc.innerHTML = '현재 송출 스크린은 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기 화면이며 BGM이 꺼져 있습니다.<br>행사가 시작되면 아래 <strong>[🎉 현장 추첨 공식 시작]</strong> 버튼을 눌러 스크린을 활성화하고 배경음악을 켜주세요.';
         }
         if (btnStart) btnStart.style.display = 'inline-flex';
         if (btnPause) btnPause.style.display = 'none';
+        if (btnGoToDraw) btnGoToDraw.style.display = 'none';
       }
     }
 
