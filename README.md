@@ -105,23 +105,24 @@ uv run uvicorn main:app --reload --port 8000
 
 ---
 
-## ☁️ 4. 클라우드 호스팅 (Koyeb 배포 가이드)
+## ☁️ 4. 클라우드 호스팅 (Render.com 배포 가이드)
 
 1. 이 프로젝트 코드를 **GitHub Repository**에 푸시합니다.
-2. [Koyeb 대시보드](https://app.koyeb.com)에 로그인 후 **Create App** (또는 **Create Service**) 클릭
-3. **Deployment method**: **GitHub** 선택 후 해당 레포지토리 연결
-4. 빌드 및 실행 설정:
-   - **Builder**: **Buildpack** (기본값, `pyproject.toml` 및 `requirements.txt` 자동 인식)
-   - **Run command**: 
+2. [Render.com 대시보드](https://dashboard.render.com) 접속 후 **New +** → **Web Service** 선택
+3. 본인 GitHub 레포지토리 연결
+4. 빌드 및 시작 명령어 설정:
+   - **Build Command**: 
+     ```bash
+     pip install uv && uv sync --frozen
+     ```
+   - **Start Command**: 
      ```bash
      uv run uvicorn main:app --host 0.0.0.0 --port $PORT
      ```
-     *(또는 Buildpack 기본 python 환경 사용 시: `uvicorn main:app --host 0.0.0.0 --port $PORT`)*
-5. **Environment variables** 탭에서 환경 변수 등록:
+5. **Environment Variables** 탭에서 환경 변수 등록:
    - `ADMIN_PASSWORD`: 행사 당일 사용할 관리자 비밀번호 (기본값: `admin1234`)
    - `SUPABASE_URL`: (권장) Supabase Project URL *(클라우드 배포 시 인스턴스 재시작 간 데이터 영구 보존을 위해 Supabase 연동 권장)*
    - `SUPABASE_KEY`: (권장) Supabase Key
-6. **Exposing your service** (포트 설정):
-   - Koyeb이 할당하는 `$PORT` 환경변수로 바인딩되므로, 포트 번호가 자동 매핑됩니다 (기본 HTTP 8000 또는 Koyeb 자동 감지).
-7. **Deploy** 버튼을 누르면 배포가 완료되며 공용 URL이 생성됩니다.
+6. **Deploy Web Service** 클릭 시 배포가 완료되며 공용 URL이 생성됩니다.
+
 
