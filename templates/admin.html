@@ -368,15 +368,81 @@
 
     .prize-setting-row {
       display: grid;
-      grid-template-columns: 120px 100px 1fr 50px;
+      grid-template-columns: 56px 130px 100px 1fr 45px;
       gap: 10px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      padding: 6px 12px;
+      border-radius: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .prize-setting-row:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .prize-setting-row.dragging {
+      opacity: 0.45;
+      background: rgba(2, 132, 199, 0.18);
+      border: 2px dashed var(--primary-sky);
+      transform: scale(0.99);
+    }
+
+    .drag-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: #94a3b8;
+      cursor: grab;
+      user-select: none;
+      padding: 4px;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .drag-handle:hover {
+      color: var(--primary-sky);
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .drag-handle .handle-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .order-btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .order-btn {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 0.65rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+
+    .order-btn:hover {
+      color: var(--primary-sky);
     }
 
     @media (max-width: 600px) {
       .prize-setting-row {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 46px 1fr 1fr;
       }
     }
 
@@ -666,6 +732,17 @@
         <div class="card-title">
           <span>등수 및 당첨 인원 설정</span>
           <button class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.85rem; border-color: var(--primary); color: var(--primary-sky); background: rgba(2, 132, 199, 0.1);" onclick="addPrizeRow()">+ 등수 추가</button>
+        </div>
+        <p style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 12px;">
+          💡 행 왼쪽의 <strong>드래그 핸들(⠿)</strong>을 끌어놓거나 <strong>화살표(▲/▼)</strong>를 눌러 추첨 순서를 변경할 수 있습니다.
+        </p>
+        <!-- 열 이름 헤더 바 -->
+        <div style="display: grid; grid-template-columns: 56px 130px 100px 1fr 45px; gap: 10px; padding: 0 12px 6px 12px; font-size: 0.8rem; color: #94a3b8; font-weight: 700;">
+          <span style="text-align: center;">순서</span>
+          <span>등수명</span>
+          <span>당첨 인원</span>
+          <span>상품명</span>
+          <span style="text-align: center;">삭제</span>
         </div>
         <div id="prizeSettingRows">
           <!-- 동적 생성 -->
@@ -1205,35 +1282,112 @@
       }
     }
 
-    // --- 설정 탭 렌더링 및 저장 ---
+    // --- 설정 탭 렌더링 및 드래그 앤 드롭 순서 변경 ---
+    function createPrizeRowElement(p = {}) {
+      const row = document.createElement('div');
+      row.className = 'prize-setting-row';
+      row.draggable = true;
+      if (p.id) row.dataset.prizeId = p.id;
+
+      row.innerHTML = `
+        <div class="drag-handle" title="드래그하여 순서 변경">
+          <span class="handle-icon">⠿</span>
+          <div class="order-btn-group">
+            <button type="button" class="order-btn" title="위로 이동" onclick="movePrizeRowUp(this)">▲</button>
+            <button type="button" class="order-btn" title="아래로 이동" onclick="movePrizeRowDown(this)">▼</button>
+          </div>
+        </div>
+        <input type="text" value="${p.rank || ''}" class="row-rank" placeholder="예: 1등" draggable="false">
+        <input type="number" min="1" value="${p.count || 1}" class="row-count" placeholder="인원" draggable="false">
+        <input type="text" value="${p.name || ''}" class="row-name" placeholder="상품명 (예: 아이패드)" draggable="false">
+        <button type="button" class="btn btn-danger" style="padding: 8px 10px;" onclick="this.closest('.prize-setting-row').remove()" title="등수 삭제">✕</button>
+      `;
+
+      attachRowDragEvents(row);
+      return row;
+    }
+
     function renderPrizeRows(prizes) {
       const container = document.getElementById('prizeSettingRows');
       container.innerHTML = '';
-      prizes.forEach((p, idx) => {
-        const row = document.createElement('div');
-        row.className = 'prize-setting-row';
-        row.dataset.prizeId = p.id;
-        row.innerHTML = `
-          <input type="text" value="${p.rank}" class="row-rank" placeholder="예: 1등">
-          <input type="number" min="1" value="${p.count}" class="row-count" placeholder="인원">
-          <input type="text" value="${p.name || ''}" class="row-name" placeholder="상품명 (예: 아이패드)">
-          <button class="btn btn-danger" style="padding: 10px;" onclick="this.parentElement.remove()">✕</button>
-        `;
-        container.appendChild(row);
+      prizes.forEach((p) => {
+        container.appendChild(createPrizeRowElement(p));
       });
+      initPrizeContainerDragEvents();
     }
 
     function addPrizeRow() {
       const container = document.getElementById('prizeSettingRows');
-      const row = document.createElement('div');
-      row.className = 'prize-setting-row';
-      row.innerHTML = `
-        <input type="text" value="추가등수" class="row-rank" placeholder="예: 특별상">
-        <input type="number" min="1" value="1" class="row-count" placeholder="인원">
-        <input type="text" value="" class="row-name" placeholder="상품명">
-        <button class="btn btn-danger" style="padding: 10px;" onclick="this.parentElement.remove()">✕</button>
-      `;
+      const row = createPrizeRowElement({ rank: '추가등수', count: 1, name: '' });
       container.appendChild(row);
+      row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    let isContainerDragInitialized = false;
+    function initPrizeContainerDragEvents() {
+      const container = document.getElementById('prizeSettingRows');
+      if (!container || isContainerDragInitialized) return;
+      isContainerDragInitialized = true;
+
+      container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const draggingRow = container.querySelector('.dragging');
+        if (!draggingRow) return;
+
+        const afterElement = getDragAfterElement(container, e.clientY);
+        if (afterElement == null) {
+          container.appendChild(draggingRow);
+        } else {
+          container.insertBefore(draggingRow, afterElement);
+        }
+      });
+    }
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.prize-setting-row:not(.dragging)')];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function attachRowDragEvents(row) {
+      row.addEventListener('dragstart', (e) => {
+        // input 입력창이나 버튼 조작 시에는 드래그 방지
+        if (['INPUT', 'BUTTON'].includes(e.target.tagName)) {
+          e.preventDefault();
+          return;
+        }
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+      });
+
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+      });
+    }
+
+    function movePrizeRowUp(btn) {
+      const row = btn.closest('.prize-setting-row');
+      const prev = row.previousElementSibling;
+      if (prev && prev.classList.contains('prize-setting-row')) {
+        row.parentElement.insertBefore(row, prev);
+      }
+    }
+
+    function movePrizeRowDown(btn) {
+      const row = btn.closest('.prize-setting-row');
+      const next = row.nextElementSibling;
+      if (next && next.classList.contains('prize-setting-row')) {
+        row.parentElement.insertBefore(next, row);
+      }
     }
 
     async function saveConfiguration() {
