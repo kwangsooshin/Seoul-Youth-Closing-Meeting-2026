@@ -28,39 +28,12 @@ FastAPI + WebSocket + uv 기반의 실시간 반응형 현장 추첨 웹 애플�
 
 ## 🛠️ 1. Supabase 설정 (선택 사항)
 
-Supabase를 사용하려면 대시보드([supabase.com](https://supabase.com))의 **SQL Editor**에서 아래 쿼리를 1회 실행합니다 (미설정 시 로컬 SQLite `lottery.db`로 자동 동작):
+Supabase 클라우드 데이터베이스를 연동하려면, Supabase 대시보드([supabase.com](https://supabase.com))의 **SQL Editor**에서 스키마 정의 파일을 복사하여 1회 실행합니다 (미설정 시 로컬 SQLite `lottery.db`로 자동 무중단 동작):
 
-```sql
--- db/sql/supabase/schema.sql 파일 참고
--- 등수(경품) 설정
-CREATE TABLE prizes (
-    id BIGSERIAL PRIMARY KEY,
-    rank VARCHAR(50) NOT NULL,
-    name VARCHAR(100) DEFAULT '',
-    count INT NOT NULL DEFAULT 1,
-    sort_order INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
+👉 **테이블 생성 SQL 파일:** [`db/sql/supabase/schema.sql`](db/sql/supabase/schema.sql)
 
--- 추첨 이력 (등수명/상품명은 prizes 와 JOIN 하여 조회)
-CREATE TABLE draw_history (
-    id BIGSERIAL PRIMARY KEY,
-    prize_id BIGINT NOT NULL REFERENCES prizes(id) ON DELETE RESTRICT,
-    drawn_number INT NOT NULL,
-    status VARCHAR(20) NOT NULL, -- 'CONFIRMED' 또는 'PASSED'
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- 앱 설정 (번호 범위, BGM 링크 등 JSONB 저장)
-CREATE TABLE app_config (
-    id VARCHAR(50) PRIMARY KEY DEFAULT 'current',
-    data JSONB NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-```
-
-> `prizes` 및 `app_config` 테이블이 비어 있으면 서버 시작 시 기본 등수(3등/2등/1등)와 기본 설정이 자동으로 시드됩니다.
-> 번호 범위·BGM 설정 및 등수 정보는 데이터베이스(Supabase / 로컬 SQLite)에 JSON 형태로 안전하게 영구 저장됩니다.
+> 💡 `prizes` 및 `app_config` 테이블이 생성되어 비어 있으면 서버 시작 시 기본 등수(3등/2등/1등)와 기본 설정이 자동으로 시드됩니다.
+> 💡 번호 범위·BGM 설정 및 등수 정보는 데이터베이스(Supabase / 로컬 SQLite)에 안전하게 영구 저장됩니다.
 
 ---
 
