@@ -1,6 +1,6 @@
 import os
 import json
-import random
+import secrets
 import asyncio
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -365,7 +365,7 @@ async def start_draw(req: DrawStartRequest):
     if not available_numbers:
         raise HTTPException(status_code=400, detail="추첨 가능한 남은 번호가 없습니다!")
 
-    picked_number = random.choice(available_numbers)
+    picked_number = secrets.choice(available_numbers)
     current_pending_draw = {
         "number": picked_number,
         "prize_id": prize["id"],
