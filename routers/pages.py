@@ -62,8 +62,8 @@ async def admin_page(request: Request, background_tasks: BackgroundTasks):
     return templates.TemplateResponse(request=request, name="admin.html")
 
 
-@router.get("/healthz")
-@router.get("/api/health")
+@router.api_route("/healthz", methods=["GET", "HEAD"])
+@router.api_route("/api/health", methods=["GET", "HEAD"])
 async def health_check(request: Request, background_tasks: BackgroundTasks):
     """
     Render 및 Supabase 활성화 유지(Keep-Alive)를 위한 헬스체크 엔드포인트.
