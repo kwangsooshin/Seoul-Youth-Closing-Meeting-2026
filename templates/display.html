@@ -815,6 +815,70 @@
       background: rgba(203, 213, 225, 0.8);
       border-radius: 10px;
     }
+
+    /* 오디오 자동재생(Autoplay) 정책 언락 배너 */
+    .audio-unlock-banner {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      padding: 10px 22px;
+      border-radius: 999px;
+      box-shadow: 0 8px 30px rgba(2, 132, 199, 0.45);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      animation: pulse-unlock 2.2s infinite ease-in-out;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+    }
+    .audio-unlock-banner:hover {
+      transform: translateX(-50%) scale(1.04);
+      box-shadow: 0 10px 35px rgba(2, 132, 199, 0.6);
+    }
+    .audio-unlock-banner.attention {
+      background: linear-gradient(135deg, #f5901e 0%, #ea580c 100%);
+      box-shadow: 0 8px 32px rgba(245, 144, 30, 0.65);
+      border-color: rgba(255, 255, 255, 0.6);
+      animation: pulse-urgent 1.1s infinite ease-in-out;
+    }
+    .audio-unlock-banner.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(-25px);
+    }
+    .audio-unlock-banner .unlock-btn {
+      background: #ffffff;
+      color: #0284c7;
+      border: none;
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      transition: transform 0.15s ease;
+    }
+    .audio-unlock-banner .unlock-btn:hover {
+      transform: scale(1.05);
+    }
+    .audio-unlock-banner.attention .unlock-btn {
+      color: #ea580c;
+    }
+    @keyframes pulse-unlock {
+      0%, 100% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.03); }
+    }
+    @keyframes pulse-urgent {
+      0%, 100% { transform: translateX(-50%) scale(1.02); }
+      50% { transform: translateX(-50%) scale(1.08); }
+    }
   </style>
 </head>
 <body>
@@ -842,8 +906,15 @@
     </div>
   </div>
 
-  <!-- 백그라운드 유튜브 오디오 플레이어 (화면 우측하단 2px 극소 배치하여 브라우저 백그라운드 미디어 차단 방지) -->
-  <div id="ytPlayerWrapper" style="position: fixed; bottom: 0; right: 0; width: 2px; height: 2px; opacity: 0.01; pointer-events: none; z-index: -999; overflow: hidden;" aria-hidden="true">
+  <!-- 오디오 자동재생(Autoplay) 정책 해제 유도 배너 -->
+  <div id="audioUnlockBanner" class="audio-unlock-banner" onclick="unlockAudio(event)">
+    <span class="unlock-icon">🔊</span>
+    <span class="unlock-text" id="unlockBannerText">클릭하여 현장 오디오(BGM 및 효과음)를 활성화하세요</span>
+    <button class="unlock-btn">사운드 켜기</button>
+  </div>
+
+  <!-- 백그라운드 유튜브 오디오 플레이어 (화면 밖 320x240 표준 규격으로 브라우저의 백그라운드 절전 스로틀링 방지) -->
+  <div id="ytPlayerWrapper" style="position: fixed; left: -9999px; top: -9999px; width: 320px; height: 240px; pointer-events: none; z-index: -999;" aria-hidden="true">
     <div id="youtubePlayer"></div>
   </div>
 
@@ -930,16 +1001,61 @@
   </main>
 
   <script>
-    // --- YouTube IFrame BGM 플레이어 (무한 반복) ---
+    // --- YouTube IFrame BGM 플레이어 (무한 반복 & Autoplay 대응) ---
     let ytPlayer = null;
     let currentVideoId = 'ujCh9JIxCeA';
     let isYtReady = false;
+    let isAudioUnlocked = false; // 브라우저 Autoplay 정책 해제 여부
+    let pendingBgmCommand = null; // 플레이어 준비 전 수신된 BGM 명령 대기열
 
     function extractYouTubeId(url) {
       if (!url) return 'ujCh9JIxCeA';
       const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       return match ? match[1] : (url.length === 11 ? url : 'ujCh9JIxCeA');
     }
+
+    // 브라우저 오디오 언락 (화면 클릭 또는 버튼 클릭 시 호출)
+    function unlockAudio(e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      isAudioUnlocked = true;
+      const banner = document.getElementById('audioUnlockBanner');
+      if (banner) banner.classList.add('hidden');
+
+      // Web Audio API 활성화
+      try {
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume();
+        }
+      } catch (err) {}
+
+      // YouTube 오디오 언락 및 대기열 실행
+      if (ytPlayer && isYtReady) {
+        try {
+          if (soundEnabled && !isBgmPaused) {
+            ytPlayer.unMute();
+            ytPlayer.setVolume(normalBgmVolume);
+            ytPlayer.playVideo();
+          }
+        } catch (err) {}
+      }
+
+      if (pendingBgmCommand) {
+        const cmd = pendingBgmCommand;
+        pendingBgmCommand = null;
+        if (cmd.action === 'play') {
+          fadeInBgm(cmd.volume || normalBgmVolume, 3000);
+        }
+      }
+    }
+
+    // 화면 어디든 클릭하거나 키를 누르면 자동으로 오디오 활성화
+    window.addEventListener('click', () => {
+      if (!isAudioUnlocked) unlockAudio();
+    }, { passive: true });
+    window.addEventListener('keydown', () => {
+      if (!isAudioUnlocked) unlockAudio();
+    }, { passive: true });
 
     window.onYouTubeIframeAPIReady = function() {
       isYtReady = true;
@@ -953,7 +1069,6 @@
     }
 
     let bgmCheckInterval = null;
-
     let isLotteryStarted = false; // 관리자가 추첨 시작 버튼을 누르기 전까지 false (대기 화면 & BGM OFF)
 
     function initYouTubePlayer(videoId) {
@@ -967,8 +1082,8 @@
           try { ytPlayer.destroy(); } catch (e) {}
         }
         ytPlayer = new YT.Player('youtubePlayer', {
-          height: '100',
-          width: '100',
+          height: '240',
+          width: '320',
           videoId: videoId,
           playerVars: {
             autoplay: 0,
@@ -977,12 +1092,12 @@
             controls: 0,
             modestbranding: 1,
             playsinline: 1,
-            enablejsapi: 1,
-            origin: window.location.origin
+            enablejsapi: 1
           },
           events: {
             onReady: (event) => {
               isYtReady = true;
+              console.log('✅ YouTube IFrame Player 준비 완료');
               try {
                 const iframe = event.target.getIframe();
                 if (iframe) {
@@ -991,8 +1106,15 @@
               } catch (e) {}
 
               event.target.setVolume(normalBgmVolume);
-              // BGM은 대기화면과 완전히 독립적으로 동작 (일시정지 상태가 아니면 재생 유지)
-              if (soundEnabled && !isBgmPaused) {
+
+              // 준비 전 들어온 재생 명령이 있다면 즉시 실행
+              if (pendingBgmCommand) {
+                const cmd = pendingBgmCommand;
+                pendingBgmCommand = null;
+                if (cmd.action === 'play') {
+                  fadeInBgm(cmd.volume || normalBgmVolume, 3000);
+                }
+              } else if (soundEnabled && !isBgmPaused && isAudioUnlocked) {
                 forceStartBgm();
               }
             },
@@ -1002,9 +1124,18 @@
                 if (!isBgmPaused) event.target.playVideo();
               } else if (event.data === YT.PlayerState.PLAYING) {
                 // 재생 시작 시 음소거 해제 보장
-                if (soundEnabled && !isBgmPaused) {
+                if (soundEnabled && !isBgmPaused && isAudioUnlocked) {
                   try { event.target.unMute(); } catch (e) {}
                 }
+              }
+            },
+            onError: (event) => {
+              console.warn('⚠️ YouTube 플레이어 에러 (코드: ' + event.data + ')');
+              const banner = document.getElementById('audioUnlockBanner');
+              if (banner) {
+                document.getElementById('unlockBannerText').textContent = '⚠️ 유튜브 영상 재생 제한 발생 (관리자 설정에서 다른 영상 URL로 변경 가능)';
+                banner.classList.remove('hidden');
+                banner.classList.add('attention');
               }
             }
           }
@@ -1017,16 +1148,19 @@
     // BGM 강제 재생 및 사운드 활성화 함수 (대기화면과 완전히 독립적으로 동작)
     function forceStartBgm() {
       if (isBgmPaused) return;
-      if (!ytPlayer) return;
+      if (!ytPlayer || !isYtReady || !ytPlayer.playVideo) {
+        pendingBgmCommand = { action: 'play', volume: normalBgmVolume };
+        return;
+      }
       try {
         ytPlayer.setVolume(normalBgmVolume);
-        if (soundEnabled) {
+        if (soundEnabled && isAudioUnlocked) {
           ytPlayer.unMute();
         }
         ytPlayer.playVideo();
       } catch (e) {}
 
-      // 브라우저의 정책으로 인해 재생이 지연되거나 대기 중일 경우 반복 점검
+      // 브라우저 정책으로 인해 재생이 지연되거나 대기 중일 경우 반복 점검
       if (!bgmCheckInterval) {
         let attempts = 0;
         bgmCheckInterval = setInterval(() => {
@@ -1041,10 +1175,10 @@
           if (state !== 1) { // 1: PLAYING
             try {
               ytPlayer.playVideo();
-              if (soundEnabled) ytPlayer.unMute();
+              if (soundEnabled && isAudioUnlocked) ytPlayer.unMute();
             } catch (e) {}
           } else {
-            if (soundEnabled) {
+            if (soundEnabled && isAudioUnlocked) {
               try { ytPlayer.unMute(); } catch (e) {}
             }
             if (attempts > 5) {
@@ -1140,13 +1274,33 @@
       isBgmPaused = false;
       updateSoundStatusBadge(true);
 
-      if (!ytPlayer) return;
+      // 브라우저 오디오가 아직 언락되지 않은 경우 배너를 강조하여 현장 클릭 유도
+      if (!isAudioUnlocked) {
+        const banner = document.getElementById('audioUnlockBanner');
+        if (banner) {
+          banner.classList.remove('hidden');
+          banner.classList.add('attention');
+          const txt = document.getElementById('unlockBannerText');
+          if (txt) txt.textContent = '🔔 관리자가 음악을 재생했습니다! 화면을 클릭해 소리를 켜주세요';
+        }
+      }
+
+      // 플레이어가 아직 준비되지 않았으면 준비 후 자동 실행되도록 대기열 등록
+      if (!ytPlayer || !isYtReady || !ytPlayer.playVideo) {
+        console.log('⏳ YouTube 플레이어 로딩 중... 재생 대기열 등록');
+        pendingBgmCommand = { action: 'play', volume: targetVol };
+        return;
+      }
 
       try {
         ytPlayer.setVolume(0);
-        if (soundEnabled) ytPlayer.unMute();
+        if (soundEnabled && isAudioUnlocked) {
+          ytPlayer.unMute();
+        }
         ytPlayer.playVideo();
-      } catch (e) {}
+      } catch (e) {
+        console.warn('ytPlayer.playVideo 호출 실패:', e);
+      }
 
       const stepIntervalMs = 50;
       const totalSteps = Math.max(1, Math.floor(durationMs / stepIntervalMs));
