@@ -898,8 +898,32 @@
       });
     }
 
+    // --- 관리자 API 공통 요청 헬퍼 (Authorization: Bearer 세션 토큰 자동 첨부) ---
+    async function adminFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      if (adminToken) {
+        options.headers['Authorization'] = `Bearer ${adminToken}`;
+      } else if (adminPassword) {
+        options.headers['Authorization'] = `Bearer ${adminPassword}`;
+      }
+      try {
+        const res = await fetch(url, options);
+        if (res.status === 401) {
+          // 세션 토큰 만료 시 로그인 모달 표시
+          sessionStorage.removeItem('admin_token');
+          const modal = document.getElementById('authModal');
+          if (modal) modal.style.display = 'flex';
+        }
+        return res;
+      } catch (err) {
+        console.error('API 요청 실패:', err);
+        throw err;
+      }
+    }
+
     // --- 탭 전환 ---
     function switchTab(tabId, btn) {
+
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
       const targetContent = document.getElementById(tabId);
@@ -1086,11 +1110,10 @@
       const cur = currentState.prize_status[select.value];
       if (cur) {
         try {
-          await fetch('/api/draw/select-prize', {
+          await adminFetch('/api/draw/select-prize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              password: adminPassword,
               prize_id: cur.id
             })
           });
@@ -1227,11 +1250,10 @@
       }
 
       try {
-        const res = await fetch('/api/draw/start', {
+        const res = await adminFetch('/api/draw/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            password: adminPassword,
             prize_id: curPrize.id
           })
         });
@@ -1250,10 +1272,10 @@
         return;
       }
       try {
-        const res = await fetch('/api/draw/confirm', {
+        const res = await adminFetch('/api/draw/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: adminPassword })
+          body: JSON.stringify({})
         });
         if (!res.ok) {
           const err = await res.json();
@@ -1271,10 +1293,10 @@
       }
       if (!confirm('호명된 참석자가 부재중입니까? 이 번호를 패스 처리하고 목록에 기록합니다.')) return;
       try {
-        const res = await fetch('/api/draw/pass', {
+        const res = await adminFetch('/api/draw/pass', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: adminPassword })
+          body: JSON.stringify({})
         });
         if (!res.ok) {
           const err = await res.json();
@@ -1301,10 +1323,10 @@
       }
 
       try {
-        const res = await fetch('/api/draw/cancel-last', {
+        const res = await adminFetch('/api/draw/cancel-last', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: adminPassword })
+          body: JSON.stringify({})
         });
         if (res.ok) {
           alert(`✅ #${last.drawn_number}번 [${last.prize_rank}] 추첨 내역이 취소(롤백)되었습니다.`);
@@ -1323,10 +1345,10 @@
       }
 
       try {
-        const res = await fetch('/api/draw/reset', {
+        const res = await adminFetch('/api/draw/reset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: adminPassword })
+          body: JSON.stringify({})
         });
         if (res.ok) {
           alert('추첨 데이터가 완전히 초기화되었습니다.');
@@ -1476,11 +1498,10 @@
       const youtubeUrl = document.getElementById('cfgYoutube') ? document.getElementById('cfgYoutube').value.trim() : '';
 
       try {
-        const res = await fetch('/api/config', {
+        const res = await adminFetch('/api/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            password: adminPassword,
             min_number: minNum,
             max_number: maxNum,
             bgm_youtube_url: youtubeUrl,
@@ -1501,11 +1522,10 @@
     // --- 추첨 세션(대기 vs 시작) 원격 제어 ---
     async function toggleLotterySession(started) {
       try {
-        const res = await fetch('/api/draw/session', {
+        const res = await adminFetch('/api/draw/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            password: adminPassword,
             started: started
           })
         });
@@ -1569,11 +1589,10 @@
 
     async function controlBgm(action, volume = 30) {
       try {
-        const res = await fetch('/api/bgm/control', {
+        const res = await adminFetch('/api/bgm/control', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            password: adminPassword,
             action: action,
             volume: parseInt(volume)
           })
@@ -1642,11 +1661,10 @@
         return;
       }
       try {
-        const res = await fetch('/api/config', {
+        const res = await adminFetch('/api/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            password: adminPassword,
             min_number: currentState.config.min_number,
             max_number: currentState.config.max_number,
             bgm_youtube_url: youtubeUrl
@@ -1683,17 +1701,8 @@
       tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--text-muted);">로그를 불러오는 중입니다...</td></tr>`;
 
       try {
-        const headers = {};
-        if (adminToken) {
-          headers['Authorization'] = `Bearer ${adminToken}`;
-        } else if (adminPassword) {
-          headers['Authorization'] = `Bearer ${adminPassword}`;
-        }
-
-        // URL에 비밀번호를 포함하지 않고 HTTP Authorization 헤더로 안전하게 요청
-        const res = await fetch(`/api/admin/audit-logs?limit=50`, {
-          headers: headers
-        });
+        // adminFetch가 Authorization Bearer 토큰 헤더를 자동으로 첨부합니다
+        const res = await adminFetch('/api/admin/audit-logs?limit=50');
         if (!res.ok) {
           throw new Error('감사 로그 조회 실패 (인증 만료 또는 서버 오류)');
         }
@@ -1743,16 +1752,8 @@
       if (!confirm('24시간이 경과한 오래된 접속 감사 로그를 데이터베이스에서 정리하시겠습니까?\n(최근 24시간 동안의 로그는 그대로 유지됩니다)')) return;
 
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (adminToken) {
-          headers['Authorization'] = `Bearer ${adminToken}`;
-        } else if (adminPassword) {
-          headers['Authorization'] = `Bearer ${adminPassword}`;
-        }
-
-        const res = await fetch('/api/admin/audit-logs/cleanup?hours=24', {
-          method: 'POST',
-          headers: headers
+        const res = await adminFetch('/api/admin/audit-logs/cleanup?hours=24', {
+          method: 'POST'
         });
         if (res.ok) {
           alert('🧹 24시간이 경과한 오래된 감사 로그가 성공적으로 정리되었습니다.');
@@ -1764,6 +1765,7 @@
         alert('요청 중 오류가 발생했습니다: ' + err.message);
       }
     }
+
 
   </script>
 </body>

@@ -37,7 +37,7 @@ class PrizeInput(BaseModel):
 
 
 class ConfigUpdateRequest(BaseModel):
-    password: str
+    password: Optional[str] = ""
     min_number: int
     max_number: int
     bgm_youtube_url: Optional[str] = DEFAULT_BGM_URL
@@ -45,9 +45,10 @@ class ConfigUpdateRequest(BaseModel):
 
 
 @router.post("/config")
-async def update_config(req: ConfigUpdateRequest):
-    if req.password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="인증 실패")
+async def update_config(req: ConfigUpdateRequest, request: Request):
+    if not is_authenticated_admin(request, legacy_password=req.password):
+        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+
 
     if req.min_number >= req.max_number:
         raise HTTPException(status_code=400, detail="최소 번호는 최대 번호보다 작아야 합니다.")
@@ -101,15 +102,16 @@ async def update_config(req: ConfigUpdateRequest):
 
 
 class BgmControlRequest(BaseModel):
-    password: str
+    password: Optional[str] = ""
     action: str  # "play", "pause", "mute", "unmute", "set_volume"
     volume: Optional[int] = 30
 
 
 @router.post("/bgm/control")
-async def control_bgm(req: BgmControlRequest):
-    if req.password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="인증 실패")
+async def control_bgm(req: BgmControlRequest, request: Request):
+    if not is_authenticated_admin(request, legacy_password=req.password):
+        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+
 
     await manager.broadcast({
         "type": "BGM_CONTROL",

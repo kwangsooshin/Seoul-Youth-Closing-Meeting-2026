@@ -58,3 +58,10 @@ def is_authenticated_admin(request: Request, legacy_password: Optional[str] = No
         return True
 
     return False
+
+
+def revoke_admin_token(token: Optional[str]):
+    """로그아웃 또는 세션 파기 시 토큰 무효화"""
+    if token and token in _sessions:
+        del _sessions[token]
+
