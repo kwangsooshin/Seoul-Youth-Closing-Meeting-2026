@@ -551,6 +551,9 @@
             <input type="number" id="cfgMax" min="1" value="200">
           </div>
         </div>
+        <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 8px;">
+          * 번호 범위는 서버 메모리에만 적용되며, 서버 재시작 시 config.json 기본값으로 돌아갑니다. (등수 설정은 DB에 영구 저장)
+        </small>
       </div>
 
       <div class="card">
@@ -924,8 +927,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             password: adminPassword,
-            rank: curPrize.rank,
-            name: curPrize.name
+            prize_id: curPrize.id
           })
         });
         const data = await res.json();
@@ -998,6 +1000,7 @@
       prizes.forEach((p, idx) => {
         const row = document.createElement('div');
         row.className = 'prize-setting-row';
+        row.dataset.prizeId = p.id;
         row.innerHTML = `
           <input type="text" value="${p.rank}" class="row-rank" placeholder="예: 1등">
           <input type="number" min="1" value="${p.count}" class="row-count" placeholder="인원">
@@ -1032,12 +1035,14 @@
 
       const rows = document.querySelectorAll('.prize-setting-row');
       const prizes = [];
-      rows.forEach((r, i) => {
+      rows.forEach((r) => {
         const rank = r.querySelector('.row-rank').value.trim();
         const count = parseInt(r.querySelector('.row-count').value);
         const name = r.querySelector('.row-name').value.trim();
+        // 기존 등수는 DB id 유지 (수정), 신규 행은 id 없이 전송 (추가)
+        const id = r.dataset.prizeId ? parseInt(r.dataset.prizeId) : null;
         if (rank && count > 0) {
-          prizes.push({ id: `prize_${i}`, rank, count, name });
+          prizes.push({ id, rank, count, name });
         }
       });
 
@@ -1215,8 +1220,7 @@
             password: adminPassword,
             min_number: currentState.config.min_number,
             max_number: currentState.config.max_number,
-            bgm_youtube_url: youtubeUrl,
-            prizes: currentState.config.prizes
+            bgm_youtube_url: youtubeUrl
           })
         });
         if (res.ok) {

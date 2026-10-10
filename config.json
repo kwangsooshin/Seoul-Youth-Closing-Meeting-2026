@@ -1,25 +1,5 @@
 {
   "min_number": 1,
-  "max_number": 11,
-  "bgm_youtube_url": "https://www.youtube.com/watch?v=ujCh9JIxCeA",
-  "prizes": [
-    {
-      "id": "prize_0",
-      "rank": "3등",
-      "count": 5,
-      "name": "스타벅스 e카드 교환권"
-    },
-    {
-      "id": "prize_1",
-      "rank": "2등",
-      "count": 3,
-      "name": "무선 이어폰"
-    },
-    {
-      "id": "prize_2",
-      "rank": "1등",
-      "count": 1,
-      "name": "아이패드 10세대"
-    }
-  ]
+  "max_number": 200,
+  "bgm_youtube_url": "https://www.youtube.com/watch?v=ujCh9JIxCeA"
 }
