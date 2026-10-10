@@ -148,3 +148,30 @@ def clear_records():
         conn.execute("DELETE FROM draw_history")
         conn.commit()
         print("[SUCCESS] 로컬 SQLite(lottery.db) 데이터가 초기화되었습니다.")
+
+def save_access_log(ip: str, page_type: str, path: str, user_agent: str = ""):
+    """페이지 접속 감사 로그(Audit Log) 저장"""
+    try:
+        with sqlite_connect() as conn:
+            conn.execute(
+                "INSERT INTO access_logs (ip, page_type, path, user_agent) VALUES (?, ?, ?, ?)",
+                (ip, page_type, path, user_agent),
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"[WARN] SQLite access log 저장 오류: {e}")
+
+def load_access_logs(limit: int = 100) -> List[Dict[str, Any]]:
+    """페이지 접속 감사 로그(Audit Log) 최신순 조회"""
+    try:
+        with sqlite_connect() as conn:
+            rows = conn.execute(
+                "SELECT id, ip, page_type, path, user_agent, created_at "
+                "FROM access_logs ORDER BY id DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"[WARN] SQLite access log 조회 오류: {e}")
+        return []
+

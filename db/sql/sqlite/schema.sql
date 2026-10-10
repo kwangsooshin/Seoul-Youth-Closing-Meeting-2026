@@ -25,3 +25,13 @@ CREATE TABLE IF NOT EXISTS app_config (
     data TEXT NOT NULL, -- JSON 형식 설정 데이터
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 4. access_logs 테이블 (페이지 접속 감사 로그 - IP 및 페이지 유형)
+CREATE TABLE IF NOT EXISTS access_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip TEXT NOT NULL,
+    page_type TEXT NOT NULL, -- 'display', 'admin' 등
+    path TEXT NOT NULL,
+    user_agent TEXT DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

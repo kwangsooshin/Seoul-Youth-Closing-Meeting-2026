@@ -26,8 +26,19 @@ CREATE TABLE IF NOT EXISTS app_config (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 4. API 역할(service_role, anon, authenticated) 접근 및 시퀀스 권한 부여
+-- 4. access_logs 테이블 (페이지 접속 감사 로그 - IP 및 페이지 유형)
+CREATE TABLE IF NOT EXISTS access_logs (
+    id BIGSERIAL PRIMARY KEY,
+    ip VARCHAR(50) NOT NULL,
+    page_type VARCHAR(50) NOT NULL, -- 'display', 'admin' 등
+    path VARCHAR(255) NOT NULL,
+    user_agent TEXT DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. API 역할(service_role, anon, authenticated) 접근 및 시퀀스 권한 부여
 GRANT ALL ON TABLE prizes TO service_role, anon, authenticated;
 GRANT ALL ON TABLE draw_history TO service_role, anon, authenticated;
 GRANT ALL ON TABLE app_config TO service_role, anon, authenticated;
+GRANT ALL ON TABLE access_logs TO service_role, anon, authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role, anon, authenticated;

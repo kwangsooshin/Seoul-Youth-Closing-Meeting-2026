@@ -5,9 +5,10 @@ from pydantic import BaseModel
 from core.config import ADMIN_PASSWORD, DEFAULT_BGM_URL
 from core.state import state
 from core.websocket import manager
-from db import save_prizes, load_prizes, load_history, save_app_config
+from db import save_prizes, load_prizes, load_history, save_app_config, load_access_logs
 
 router = APIRouter(prefix="/api", tags=["Admin"])
+
 
 
 class VerifyPasswordRequest(BaseModel):
@@ -114,3 +115,14 @@ async def control_bgm(req: BgmControlRequest):
         "volume": req.volume
     })
     return {"success": True, "action": req.action, "volume": req.volume}
+
+
+@router.get("/admin/audit-logs")
+async def get_audit_logs(password: str, limit: int = 50):
+    """페이지 접속 감사 로그(Audit Log) 목록 조회 (관리자 인증 필요)"""
+    if password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="인증 실패")
+
+    logs = load_access_logs(limit=min(limit, 200))
+    return {"success": True, "logs": logs}
+

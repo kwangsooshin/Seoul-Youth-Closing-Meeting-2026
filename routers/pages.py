@@ -1,28 +1,66 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from core.config import BASE_DIR
+from db import save_access_log
 
 router = APIRouter(tags=["Pages"])
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
-@app_router_root := router.get("/", response_class=HTMLResponse)
-async def display_page(request: Request):
+def get_client_ip(request: Request) -> str:
+    """프록시/클라우드 환경(X-Forwarded-For 등) 및 로컬 환경에서 클라이언트 IP 추출"""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+        if parts:
+            return parts[0]
+
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip.strip()
+
+    if request.client and request.client.host:
+        return request.client.host
+
+    return "unknown"
+
+
+def record_audit(request: Request, page_type: str):
+    """페이지 접속 감사 로그(Audit Log)를 백그라운드로 안전하게 DB 저장"""
+    try:
+        ip = get_client_ip(request)
+        path = request.url.path
+        user_agent = request.headers.get("user-agent", "")[:255]
+        save_access_log(ip=ip, page_type=page_type, path=path, user_agent=user_agent)
+    except Exception as e:
+        print(f"[WARN] 감사 로그 기록 실패: {e}")
+
+
+@router.get("/", response_class=HTMLResponse)
+async def display_page(request: Request, background_tasks: BackgroundTasks):
     """현장 송출용 화면 (대형 스크린 / 관객용)"""
+    background_tasks.add_task(record_audit, request, "display")
     return templates.TemplateResponse(request=request, name="display.html")
 
 
 @router.get("/display", response_class=HTMLResponse)
-async def display_alias(request: Request):
+async def display_alias(request: Request, background_tasks: BackgroundTasks):
+    background_tasks.add_task(record_audit, request, "display")
     return templates.TemplateResponse(request=request, name="display.html")
 
 
 @router.get("/admin", response_class=HTMLResponse)
-async def admin_page(request: Request):
+async def admin_page(request: Request, background_tasks: BackgroundTasks):
     """관리자용 진행 및 설정 화면"""
+    background_tasks.add_task(record_audit, request, "admin")
     return templates.TemplateResponse(request=request, name="admin.html")
+
 
 
 @router.get("/logo.png")

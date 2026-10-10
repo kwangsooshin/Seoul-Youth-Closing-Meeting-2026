@@ -95,3 +95,18 @@ def delete_last_record(client) -> Optional[int]:
 
 def clear_records(client):
     client.table("draw_history").delete().neq("id", 0).execute()
+
+def save_access_log(client, ip: str, page_type: str, path: str, user_agent: str = ""):
+    """Supabase access_logs 테이블에 접속 감사 로그 저장"""
+    client.table("access_logs").insert({
+        "ip": ip,
+        "page_type": page_type,
+        "path": path,
+        "user_agent": user_agent,
+    }).execute()
+
+def load_access_logs(client, limit: int = 100) -> List[Dict[str, Any]]:
+    """Supabase access_logs 테이블에서 접속 감사 로그 최신순 조회"""
+    res = client.table("access_logs").select("id, ip, page_type, path, user_agent, created_at").order("id", desc=True).limit(limit).execute()
+    return res.data or []
+

@@ -152,3 +152,32 @@ def get_db_info(history_count: int) -> Dict[str, str]:
         "name": "Supabase 클라우드" if use_supabase else "로컬 SQLite (lottery.db)",
         "details": f"테이블: prizes, draw_history ({history_count}건)" if use_supabase else f"파일: lottery.db ({history_count}건)"
     }
+
+def save_access_log(ip: str, page_type: str, path: str, user_agent: str = ""):
+    """Supabase 우선 저장, 실패 시 SQLite 대체 저장"""
+    global use_supabase
+    saved_supabase = False
+    if use_supabase and supabase_client:
+        try:
+            supabase_db.save_access_log(supabase_client, ip, page_type, path, user_agent)
+            saved_supabase = True
+        except Exception as e:
+            print(f"[WARN] Supabase access log 저장 실패 -> SQLite 대체 저장: {e}")
+
+    # Supabase 저장이 되지 않았거나 오프라인인 경우 SQLite에 저장 (또는 무중단 백업)
+    if not saved_supabase:
+        try:
+            sqlite_db.save_access_log(ip, page_type, path, user_agent)
+        except Exception as e:
+            print(f"[WARN] SQLite access log 저장 실패: {e}")
+
+def load_access_logs(limit: int = 100) -> List[Dict[str, Any]]:
+    """Supabase 우선 조회, 실패 시 SQLite 조회"""
+    global use_supabase
+    if use_supabase and supabase_client:
+        try:
+            return supabase_db.load_access_logs(supabase_client, limit)
+        except Exception as e:
+            print(f"[WARN] Supabase access log 조회 실패 -> SQLite 대체: {e}")
+    return sqlite_db.load_access_logs(limit)
+
