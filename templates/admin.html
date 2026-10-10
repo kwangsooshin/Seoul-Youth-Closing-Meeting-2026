@@ -584,7 +584,7 @@
           <span><span style="color:var(--primary-sky);">1.</span> 추첨할 등수 선택</span>
           <span style="font-size:0.85rem; color: var(--accent-orange); font-weight: 700;" id="currentRemainInfo">-</span>
         </div>
-        <select id="prizeSelect" onchange="onPrizeSelectChange()">
+        <select id="prizeSelect" onchange="onPrizeSelectChange(true)">
           <!-- 동적 옵션 -->
         </select>
       </div>
@@ -791,7 +791,7 @@
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET' || msg.type === 'DRAW_CANCELLED' || msg.type === 'LOTTERY_SESSION_STATE') {
+        if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET' || msg.type === 'DRAW_CANCELLED' || msg.type === 'LOTTERY_SESSION_STATE' || msg.type === 'PRIZE_TARGET_CHANGED') {
           currentState = msg.data;
           renderAdminState(msg.data);
         } else if (msg.type === 'DRAW_ROLLING_START') {
@@ -865,10 +865,18 @@
         opt.textContent = `${p.rank} (${p.name || '경품'}) - [${p.confirmed_count}/${p.target_count}명] ${p.is_completed ? '✅ 완료' : ''}`;
         prizeSelect.appendChild(opt);
       });
-      if (prevVal && prizeSelect.options[prevVal]) {
+
+      if (state.selected_prize_id) {
+        const matchIdx = state.prize_status.findIndex(p => p.id === state.selected_prize_id);
+        if (matchIdx !== -1) {
+          prizeSelect.value = matchIdx;
+        } else if (prevVal && prizeSelect.options[prevVal]) {
+          prizeSelect.value = prevVal;
+        }
+      } else if (prevVal && prizeSelect.options[prevVal]) {
         prizeSelect.value = prevVal;
       }
-      onPrizeSelectChange();
+      updatePrizeRemainInfo();
 
       // 2. 간이 요약
       document.getElementById('remainingTicketsText').textContent = `남은 번호: ${state.remaining_pool_count}개`;
@@ -926,12 +934,33 @@
       }
     }
 
-    function onPrizeSelectChange() {
+    function updatePrizeRemainInfo() {
       if (!currentState) return;
       const select = document.getElementById('prizeSelect');
       const cur = currentState.prize_status[select.value];
       if (cur) {
         document.getElementById('currentRemainInfo').textContent = `현재 ${cur.confirmed_count}명 확정 / 목표 ${cur.target_count}명`;
+      }
+    }
+
+    async function onPrizeSelectChange(isUserAction = true) {
+      updatePrizeRemainInfo();
+      if (!isUserAction || !currentState) return;
+      const select = document.getElementById('prizeSelect');
+      const cur = currentState.prize_status[select.value];
+      if (cur) {
+        try {
+          await fetch('/api/draw/select-prize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              password: adminPassword,
+              prize_id: cur.id
+            })
+          });
+        } catch (e) {
+          console.warn('등수 선택 실시간 동기화 실패:', e);
+        }
       }
     }
 

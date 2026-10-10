@@ -11,6 +11,7 @@ class LotteryState:
         self.history: List[Dict[str, Any]] = []
         self.pending_draw: Optional[Dict[str, Any]] = None
         self.is_started: bool = False  # 현장 추첨 대기화면 해제 여부
+        self.selected_prize_id: Optional[int] = None  # 관리자가 현재 선택한 추첨 등수 ID
 
     def sync_from_db(self):
         """DB에서 등수 목록 및 추첨 이력 동기화"""
@@ -19,6 +20,18 @@ class LotteryState:
             self.history = load_history()
             info = get_db_info(len(self.history))
             print(f"[SUCCESS] {info['name']}에서 등수 {len(self.prizes)}개, 이력 {len(self.history)}건을 불러왔습니다.")
+
+            # 선택된 등수가 없거나 유효하지 않으면 미완료 등수 또는 첫 번째 등수로 기본 설정
+            if self.prizes:
+                valid_ids = {p["id"] for p in self.prizes}
+                if self.selected_prize_id not in valid_ids:
+                    used_by_prize: Dict[int, int] = {}
+                    for h in self.history:
+                        if h.get("status") == "CONFIRMED":
+                            used_by_prize[h["prize_id"]] = used_by_prize.get(h["prize_id"], 0) + 1
+                    # 완료되지 않은 첫 번째 등수 찾기
+                    next_p = next((p for p in self.prizes if used_by_prize.get(p["id"], 0) < p["count"]), None)
+                    self.selected_prize_id = next_p["id"] if next_p else self.prizes[0]["id"]
         except Exception as e:
             print(f"[WARN] DB 조회 실패: {e}")
 
@@ -69,6 +82,7 @@ class LotteryState:
             "remaining_pool_count": remaining_pool_count,
             "current_pending_draw": self.pending_draw,
             "is_lottery_started": self.is_started,
+            "selected_prize_id": self.selected_prize_id,
             "db_info": get_db_info(len(self.history))
         }
 

@@ -249,6 +249,25 @@
       letter-spacing: -0.5px;
     }
 
+    .prize-banner.pulse-highlight {
+      animation: prize-pulse 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes prize-pulse {
+      0% {
+        transform: scale(0.95);
+        opacity: 0.6;
+      }
+      50% {
+        transform: scale(1.05);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
     /* 초대형 번호판 롤링 박스 */
     .slot-machine-container {
       z-index: 2;
@@ -1524,9 +1543,12 @@
       }, 70);
     }
 
+    let currentState = null;
+
     // --- 상태 렌더링 함수 ---
     function renderState(state) {
       if (!state) return;
+      currentState = state;
       const cfg = state.config;
 
       // 0. 유튜브 BGM URL 동기화
@@ -1600,11 +1622,18 @@
         const numDisplay = document.getElementById('luckyNumberDisplay');
         const statusMsg = document.getElementById('drawStatusMsg');
 
-        // 아직 완료 안 된 첫 번째 등수 찾기
-        const nextPrize = state.prize_status.find(p => !p.is_completed);
-        if (nextPrize) {
-          document.getElementById('currentPrizeRank').textContent = nextPrize.rank;
-          document.getElementById('currentPrizeName').textContent = nextPrize.name || '추첨 대기';
+        // 관리자가 선택한 등수 우선, 없으면 아직 완료 안 된 첫 번째 등수 찾기
+        let targetPrize = null;
+        if (state.selected_prize_id) {
+          targetPrize = state.prize_status.find(p => p.id === state.selected_prize_id);
+        }
+        if (!targetPrize) {
+          targetPrize = state.prize_status.find(p => !p.is_completed);
+        }
+
+        if (targetPrize) {
+          document.getElementById('currentPrizeRank').textContent = targetPrize.rank;
+          document.getElementById('currentPrizeName').textContent = targetPrize.name || '경품 추첨';
         } else {
           document.getElementById('currentPrizeRank').textContent = '모든 추첨 완료';
           document.getElementById('currentPrizeName').textContent = '축하합니다! 모든 현장 추첨이 종료되었습니다.';
@@ -1636,6 +1665,21 @@
         } else if (msg.type === 'LOTTERY_SESSION_STATE') {
           // 관리자가 [현장 추첨 시작] 또는 [대기 모드] 전환
           setLotterySessionState(msg.started);
+        } else if (msg.type === 'PRIZE_TARGET_CHANGED') {
+          // 관리자가 추첨할 등수 선택을 변경했을 때 현장 스크린에 즉시 반영
+          if (!isCurrentlyRolling && !(currentState && currentState.current_pending_draw)) {
+            const rankEl = document.getElementById('currentPrizeRank');
+            const nameEl = document.getElementById('currentPrizeName');
+            if (rankEl) rankEl.textContent = msg.rank;
+            if (nameEl) nameEl.textContent = msg.name || '경품 추첨';
+
+            const banner = document.querySelector('.prize-banner');
+            if (banner) {
+              banner.classList.remove('pulse-highlight');
+              void banner.offsetWidth; // reflow 트리거
+              banner.classList.add('pulse-highlight');
+            }
+          }
           if (msg.data) renderState(msg.data);
         } else if (msg.type === 'DRAW_ROLLING_START') {
           // 추첨 롤링 시작

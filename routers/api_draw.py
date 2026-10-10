@@ -36,6 +36,38 @@ class DrawStartRequest(BaseModel):
     prize_id: int
 
 
+class PrizeSelectRequest(BaseModel):
+    password: str
+    prize_id: int
+
+
+@router.post("/select-prize")
+async def select_prize(req: PrizeSelectRequest):
+    """관리자 콘솔에서 추첨할 등수 선택 변경 시 디스플레이와 실시간 동기화"""
+    if req.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="인증 실패")
+
+    prize = state.find_prize(req.prize_id)
+    if not prize:
+        raise HTTPException(status_code=400, detail="존재하지 않는 등수입니다.")
+
+    state.selected_prize_id = req.prize_id
+    stats = state.get_stats()
+    await manager.broadcast({
+        "type": "PRIZE_TARGET_CHANGED",
+        "prize_id": prize["id"],
+        "rank": prize["rank"],
+        "name": prize.get("name", ""),
+        "data": stats
+    })
+    return {
+        "success": True,
+        "prize_id": req.prize_id,
+        "rank": prize["rank"],
+        "name": prize.get("name", "")
+    }
+
+
 @router.post("/start")
 async def start_draw(req: DrawStartRequest):
     if req.password != ADMIN_PASSWORD:
@@ -50,6 +82,8 @@ async def start_draw(req: DrawStartRequest):
     prize = state.find_prize(req.prize_id)
     if not prize:
         raise HTTPException(status_code=400, detail="존재하지 않는 등수입니다. 새로고침 후 다시 시도하세요.")
+
+    state.selected_prize_id = req.prize_id
 
     used_numbers = state.get_used_numbers()
     min_num = state.config["min_number"]
