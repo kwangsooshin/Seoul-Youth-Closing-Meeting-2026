@@ -31,15 +31,30 @@ FastAPI + WebSocket + uv 기반의 실시간 반응형 현장 추첨 웹 애플�
 Supabase를 사용하려면 대시보드([supabase.com](https://supabase.com))의 **SQL Editor**에서 아래 쿼리를 1회 실행합니다 (미설정 시 로컬 SQLite `lottery.db`로 자동 동작):
 
 ```sql
+-- db/sql/supabase/schema.sql 파일 참고
+-- 등수(경품) 설정
+CREATE TABLE prizes (
+    id BIGSERIAL PRIMARY KEY,
+    rank VARCHAR(50) NOT NULL,
+    name VARCHAR(100) DEFAULT '',
+    count INT NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 추첨 이력 (등수명/상품명은 prizes 와 JOIN 하여 조회)
 CREATE TABLE draw_history (
     id BIGSERIAL PRIMARY KEY,
-    prize_rank VARCHAR(50) NOT NULL,
-    prize_name VARCHAR(100) DEFAULT '',
+    prize_id BIGINT NOT NULL REFERENCES prizes(id) ON DELETE RESTRICT,
     drawn_number INT NOT NULL,
     status VARCHAR(20) NOT NULL, -- 'CONFIRMED' 또는 'PASSED'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 ```
+
+> `prizes` 테이블이 비어 있으면 서버 시작 시 기본 등수(3등/2등/1등)가 자동으로 시드됩니다.
+
+> **`config.json`** 은 번호 범위·BGM 기본값만 담는 파일로, 삭제되어도 기본값(1~200)으로 동작합니다. 관리자 페이지에서 변경한 번호 범위/BGM은 메모리에만 반영되며 파일을 수정하지 않습니다.
 
 ---
 
@@ -90,16 +105,23 @@ uv run uvicorn main:app --reload --port 8000
 
 ---
 
-## ☁️ 4. 클라우드 호스팅 (Render.com 등)
+## ☁️ 4. 클라우드 호스팅 (Koyeb 배포 가이드)
 
 1. 이 프로젝트 코드를 **GitHub Repository**에 푸시합니다.
-2. [Render.com](https://render.com) 접속 후 **New +** → **Web Service** 선택
-3. 본인 GitHub 레포지토리 연결
-4. 빌드 및 시작 명령어 설정:
-   - **Build Command**: `pip install uv && uv sync --frozen`
-   - **Start Command**: `uv run uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. **Environment Variables** 탭에서 환경 변수 등록:
+2. [Koyeb 대시보드](https://app.koyeb.com)에 로그인 후 **Create App** (또는 **Create Service**) 클릭
+3. **Deployment method**: **GitHub** 선택 후 해당 레포지토리 연결
+4. 빌드 및 실행 설정:
+   - **Builder**: **Buildpack** (기본값, `pyproject.toml` 및 `requirements.txt` 자동 인식)
+   - **Run command**: 
+     ```bash
+     uv run uvicorn main:app --host 0.0.0.0 --port $PORT
+     ```
+     *(또는 Buildpack 기본 python 환경 사용 시: `uvicorn main:app --host 0.0.0.0 --port $PORT`)*
+5. **Environment variables** 탭에서 환경 변수 등록:
    - `ADMIN_PASSWORD`: 행사 당일 사용할 관리자 비밀번호 (기본값: `admin1234`)
-   - `SUPABASE_URL`: (선택) Supabase Project URL
-   - `SUPABASE_KEY`: (선택) Supabase Key
-6. **Deploy Web Service** 클릭 시 배포가 완료됩니다.
+   - `SUPABASE_URL`: (권장) Supabase Project URL *(클라우드 배포 시 인스턴스 재시작 간 데이터 영구 보존을 위해 Supabase 연동 권장)*
+   - `SUPABASE_KEY`: (권장) Supabase Key
+6. **Exposing your service** (포트 설정):
+   - Koyeb이 할당하는 `$PORT` 환경변수로 바인딩되므로, 포트 번호가 자동 매핑됩니다 (기본 HTTP 8000 또는 Koyeb 자동 감지).
+7. **Deploy** 버튼을 누르면 배포가 완료되며 공용 URL이 생성됩니다.
+
