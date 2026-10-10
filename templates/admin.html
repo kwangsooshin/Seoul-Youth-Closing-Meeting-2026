@@ -773,6 +773,9 @@
         const targetBtn = document.querySelector(`.tab-button[onclick*="'${tabId}'"]`);
         if (targetBtn) targetBtn.classList.add('active');
       }
+      if (tabId === 'drawTab' && !isScreenRolling && (!currentState || !currentState.current_pending_draw)) {
+        resetDrawControlsToIdle();
+      }
     }
 
     // --- WebSocket 실시간 연동 ---
@@ -787,7 +790,7 @@
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET' || msg.type === 'DRAW_CANCELLED') {
+        if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET' || msg.type === 'DRAW_CANCELLED' || msg.type === 'LOTTERY_SESSION_STATE') {
           currentState = msg.data;
           renderAdminState(msg.data);
         } else if (msg.type === 'DRAW_ROLLING_START') {
@@ -1265,8 +1268,11 @@
         });
         if (res.ok) {
           const data = await res.json();
+          if (currentState) {
+            currentState.is_lottery_started = data.started;
+          }
           updateSessionUI(data.started);
-          // 추첨 시작/대기 전환 시 BGM은 독립적으로 두고 건들지 않음
+          resetDrawControlsToIdle();
         } else {
           const err = await res.json();
           alert(err.detail || '세션 변경 실패');
