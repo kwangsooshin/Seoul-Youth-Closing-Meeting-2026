@@ -31,15 +31,10 @@ def get_client_ip(request: Request) -> str:
     return "unknown"
 
 
-LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "testclient"}
-
-
 def record_audit(request: Request, page_type: str):
-    """페이지 접속 감사 로그(Audit Log)를 백그라운드로 안전하게 DB 저장 (localhost 및 127.0.0.1 제외)"""
+    """페이지 접속 감사 로그(Audit Log)를 백그라운드로 안전하게 DB 저장"""
     try:
         ip = get_client_ip(request)
-        if ip and ip.lower() in LOCAL_HOSTS:
-            return
         path = request.url.path
         user_agent = request.headers.get("user-agent", "")[:255]
         save_access_log(ip=ip, page_type=page_type, path=path, user_agent=user_agent)

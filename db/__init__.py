@@ -160,11 +160,8 @@ def get_db_info(history_count: int) -> Dict[str, str]:
     }
 
 def save_access_log(ip: str, page_type: str, path: str, user_agent: str = ""):
-    """Supabase 우선 저장, 실패 시 SQLite 대체 저장 (localhost / 127.0.0.1 제외)"""
+    """Supabase 우선 저장, 실패 시 SQLite 대체 저장"""
     global use_supabase
-    if ip and ip.lower() in ("localhost", "127.0.0.1", "::1", "testclient"):
-        return
-
     saved_supabase = False
     if use_supabase and supabase_client:
         try:
