@@ -1084,6 +1084,94 @@
       }, 50);
     }
 
+    // --- BGM Fade-in / Fade-out 제어 (3초 부드러운 전환) ---
+    let fadeInterval = null;
+    let fadeTimer = null;
+
+    function fadeInBgm(targetVol = normalBgmVolume, durationMs = 3000) {
+      if (fadeInterval) { clearInterval(fadeInterval); fadeInterval = null; }
+      if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
+
+      isBgmPaused = false;
+      updateSoundStatusBadge(true);
+
+      if (!ytPlayer) return;
+
+      try {
+        ytPlayer.setVolume(0);
+        if (soundEnabled) ytPlayer.unMute();
+        ytPlayer.playVideo();
+      } catch (e) {}
+
+      const stepIntervalMs = 50;
+      const totalSteps = Math.max(1, Math.floor(durationMs / stepIntervalMs));
+      const volStep = targetVol / totalSteps;
+      let currentVol = 0;
+
+      fadeInterval = setInterval(() => {
+        currentVol += volStep;
+        if (currentVol >= targetVol) {
+          currentVol = targetVol;
+          clearInterval(fadeInterval);
+          fadeInterval = null;
+        }
+        if (ytPlayer && ytPlayer.setVolume) {
+          try {
+            ytPlayer.setVolume(Math.round(currentVol));
+          } catch (e) {}
+        }
+      }, stepIntervalMs);
+    }
+
+    function fadeOutBgm(durationMs = 3000) {
+      if (fadeInterval) { clearInterval(fadeInterval); fadeInterval = null; }
+      if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
+
+      isBgmPaused = true;
+      updateSoundStatusBadge();
+
+      if (bgmCheckInterval) {
+        clearInterval(bgmCheckInterval);
+        bgmCheckInterval = null;
+      }
+
+      if (!ytPlayer || !ytPlayer.pauseVideo) return;
+
+      let startVol = normalBgmVolume;
+      try {
+        if (ytPlayer.getVolume) startVol = ytPlayer.getVolume();
+      } catch (e) {}
+
+      if (startVol <= 0) {
+        try { ytPlayer.pauseVideo(); } catch (e) {}
+        return;
+      }
+
+      const stepIntervalMs = 50;
+      const totalSteps = Math.max(1, Math.floor(durationMs / stepIntervalMs));
+      const volStep = startVol / totalSteps;
+      let currentVol = startVol;
+
+      fadeInterval = setInterval(() => {
+        currentVol -= volStep;
+        if (currentVol <= 0) {
+          currentVol = 0;
+          clearInterval(fadeInterval);
+          fadeInterval = null;
+          if (ytPlayer && ytPlayer.pauseVideo) {
+            try {
+              ytPlayer.pauseVideo();
+            } catch (e) {}
+          }
+        }
+        if (ytPlayer && ytPlayer.setVolume) {
+          try {
+            ytPlayer.setVolume(Math.round(currentVol));
+          } catch (e) {}
+        }
+      }, stepIntervalMs);
+    }
+
     // --- Web Audio API 사운드 신디사이저 (풍성하고 웅장한 효과음) ---
     let soundEnabled = true; // 소리 기본 ON
     let audioCtx = null;
@@ -1541,40 +1629,22 @@
           document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 대기 모드로 전환합니다.';
           renderState(msg.data);
         } else if (msg.type === 'BGM_CONTROL') {
-          // 관리자 원격 BGM & 사운드 제어 이벤트 (재생, 일시정지, 볼륨, 음소거)
+          // 관리자 원격 BGM & 사운드 제어 이벤트 (재생, 일시정지, 볼륨, 음소거 - 3초 페이드 인/아웃 적용)
           try {
             if (msg.action === 'play') {
-              isBgmPaused = false;
-              updateSoundStatusBadge(true);
-              if (ytPlayer && ytPlayer.unMute) {
-                ytPlayer.unMute();
-                ytPlayer.playVideo();
-              }
+              fadeInBgm(msg.volume || normalBgmVolume, 3000);
             } else if (msg.action === 'pause') {
-              isBgmPaused = true;
-              if (bgmCheckInterval) {
-                clearInterval(bgmCheckInterval);
-                bgmCheckInterval = null;
-              }
-              updateSoundStatusBadge();
-              if (ytPlayer && ytPlayer.pauseVideo) {
-                ytPlayer.pauseVideo();
-              }
+              fadeOutBgm(3000);
             } else if (msg.action === 'mute') {
               updateSoundStatusBadge(false);
               if (ytPlayer && ytPlayer.mute) {
                 ytPlayer.mute();
               }
             } else if (msg.action === 'unmute') {
-              isBgmPaused = false;
-              updateSoundStatusBadge(true);
-              if (ytPlayer && ytPlayer.unMute) {
-                ytPlayer.unMute();
-                ytPlayer.playVideo();
-              }
+              fadeInBgm(normalBgmVolume, 2000);
             } else if (msg.action === 'set_volume') {
               normalBgmVolume = msg.volume;
-              if (ytPlayer && ytPlayer.setVolume) {
+              if (ytPlayer && ytPlayer.setVolume && !fadeInterval) {
                 if (!isDucking) {
                   ytPlayer.setVolume(msg.volume);
                 }
