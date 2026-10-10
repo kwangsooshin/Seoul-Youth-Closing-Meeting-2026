@@ -32,9 +32,11 @@ def init_db(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[
                     print(f"[INFO] Supabase app_config 시드 대기 (테이블 생성 전 등): {e}")
             supabase_db.load_history(supabase_client)
             use_supabase = True
-            print("[SUCCESS] Supabase 테이블 연동 완료")
+            schema = supabase_db.get_schema()
+            print(f"[SUCCESS] Supabase '{schema}' 스키마 테이블 연동 완료")
         except Exception as e:
-            print(f"[INFO] Supabase 연결/테이블 불가 ({e}) -> 로컬 SQLite 모드로 동작합니다.")
+            schema = supabase_db.get_schema()
+            print(f"[INFO] Supabase '{schema}' 스키마 연결/테이블 불가 ({e}) -> 로컬 SQLite 모드로 동작합니다.")
             use_supabase = False
     else:
         print("[INFO] Supabase 설정이 없어 로컬 SQLite(lottery.db) 모드로 동작합니다.")
@@ -147,10 +149,11 @@ def clear_records():
         print(f"[WARN] SQLite 초기화 오류: {e}")
 
 def get_db_info(history_count: int) -> Dict[str, str]:
+    schema = supabase_db.get_schema()
     return {
         "type": "SUPABASE" if use_supabase else "SQLITE",
-        "name": "Supabase 클라우드" if use_supabase else "로컬 SQLite (lottery.db)",
-        "details": f"테이블: prizes, draw_history ({history_count}건)" if use_supabase else f"파일: lottery.db ({history_count}건)"
+        "name": f"Supabase 클라우드 [{schema.upper()}]" if use_supabase else "로컬 SQLite (lottery.db)",
+        "details": f"스키마: {schema} / 테이블: prizes, draw_history ({history_count}건)" if use_supabase else f"파일: lottery.db ({history_count}건)"
     }
 
 def save_access_log(ip: str, page_type: str, path: str, user_agent: str = ""):

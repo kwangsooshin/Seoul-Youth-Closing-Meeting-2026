@@ -20,6 +20,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin1234")
 
+# 실행 환경 존 (dev: 개발용, service: 실서비스 운영용)
+ZONE = os.getenv("ZONE", "dev").strip().lower()
+SCHEMA_NAME = "service" if ZONE in ("service", "prod", "production") else "dev"
+
 DEFAULT_BGM_URL = "https://www.youtube.com/watch?v=ujCh9JIxCeA"
 
 DEFAULT_CONFIG: Dict[str, Any] = {

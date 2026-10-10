@@ -1,8 +1,18 @@
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 
 PRIZE_FIELDS = ("id", "rank", "name", "count", "sort_order")
 SUPABASE_HISTORY_SELECT = "id, prize_id, drawn_number, status, created_at, prizes(rank, name)"
+
+def get_schema() -> str:
+    """실행 환경 ZONE(dev/service)에 따른 Supabase 스키마명 반환"""
+    zone = os.getenv("ZONE", "dev").strip().lower()
+    return "service" if zone in ("service", "prod", "production") else "dev"
+
+def table(client, table_name: str):
+    """현재 스키마(dev 또는 service)의 테이블 쿼리 빌더 반환"""
+    return client.schema(get_schema()).table(table_name)
 
 def _normalize_prize(row: Dict[str, Any]) -> Dict[str, Any]:
     return {
@@ -26,40 +36,42 @@ def _flatten_history(row: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 def seed_prizes_if_empty(client, default_prizes: List[Dict[str, Any]]):
-    res = client.table("prizes").select("id").limit(1).execute()
+    schema = get_schema()
+    res = table(client, "prizes").select("id").limit(1).execute()
     if not res.data:
-        client.table("prizes").insert(
+        table(client, "prizes").insert(
             [{**p, "sort_order": idx} for idx, p in enumerate(default_prizes)]
         ).execute()
-        print("[INFO] Supabase 'prizes' 테이블에 기본 등수를 시드했습니다.")
+        print(f"[INFO] Supabase '{schema}.prizes' 테이블에 기본 등수를 시드했습니다.")
 
 def seed_config_if_empty(client, default_config: Dict[str, Any]):
-    res = client.table("app_config").select("id").limit(1).execute()
+    schema = get_schema()
+    res = table(client, "app_config").select("id").limit(1).execute()
     if not res.data:
-        client.table("app_config").insert({
+        table(client, "app_config").insert({
             "id": "current",
             "data": default_config
         }).execute()
-        print("[INFO] Supabase 'app_config' 테이블에 기본 설정을 시드했습니다.")
+        print(f"[INFO] Supabase '{schema}.app_config' 테이블에 기본 설정을 시드했습니다.")
 
 def load_config_db(client) -> Optional[Dict[str, Any]]:
-    res = client.table("app_config").select("data").eq("id", "current").limit(1).execute()
+    res = table(client, "app_config").select("data").eq("id", "current").limit(1).execute()
     if res.data and len(res.data) > 0:
         return res.data[0]["data"]
     return None
 
 def save_config_db(client, config: Dict[str, Any]):
-    client.table("app_config").upsert({
+    table(client, "app_config").upsert({
         "id": "current",
         "data": config
     }).execute()
 
 def load_prizes(client) -> List[Dict[str, Any]]:
-    res = client.table("prizes").select(",".join(PRIZE_FIELDS)).order("sort_order").order("id").execute()
+    res = table(client, "prizes").select(",".join(PRIZE_FIELDS)).order("sort_order").order("id").execute()
     return [_normalize_prize(r) for r in (res.data or [])]
 
 def load_history(client) -> List[Dict[str, Any]]:
-    res = client.table("draw_history").select(SUPABASE_HISTORY_SELECT).order("id", desc=False).execute()
+    res = table(client, "draw_history").select(SUPABASE_HISTORY_SELECT).order("id", desc=False).execute()
     return [_flatten_history(r) for r in (res.data or [])]
 
 def save_prizes(client, prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]):
@@ -68,38 +80,38 @@ def save_prizes(client, prizes: List[Dict[str, Any]], current_prizes: List[Dict[
     delete_ids = list(existing_ids - incoming_ids)
 
     if delete_ids:
-        client.table("prizes").delete().in_("id", delete_ids).execute()
+        table(client, "prizes").delete().in_("id", delete_ids).execute()
 
     for order, p in enumerate(prizes):
         payload = {"rank": p["rank"], "name": p.get("name", ""), "count": p["count"], "sort_order": order}
         if p.get("id") is not None and p["id"] in existing_ids:
-            client.table("prizes").update(payload).eq("id", p["id"]).execute()
+            table(client, "prizes").update(payload).eq("id", p["id"]).execute()
         else:
-            client.table("prizes").insert(payload).execute()
+            table(client, "prizes").insert(payload).execute()
 
 def save_record(client, record: dict) -> Optional[dict]:
-    res = client.table("draw_history").insert(record).execute()
+    res = table(client, "draw_history").insert(record).execute()
     if res.data:
         new_id = res.data[0]["id"]
-        joined = client.table("draw_history").select(SUPABASE_HISTORY_SELECT).eq("id", new_id).execute()
+        joined = table(client, "draw_history").select(SUPABASE_HISTORY_SELECT).eq("id", new_id).execute()
         if joined.data:
             return _flatten_history(joined.data[0])
     return None
 
 def delete_last_record(client) -> Optional[int]:
-    res = client.table("draw_history").select("id").order("id", desc=True).limit(1).execute()
+    res = table(client, "draw_history").select("id").order("id", desc=True).limit(1).execute()
     if res.data:
         last_id = res.data[0]["id"]
-        client.table("draw_history").delete().eq("id", last_id).execute()
+        table(client, "draw_history").delete().eq("id", last_id).execute()
         return last_id
     return None
 
 def clear_records(client):
-    client.table("draw_history").delete().neq("id", 0).execute()
+    table(client, "draw_history").delete().neq("id", 0).execute()
 
 def save_access_log(client, ip: str, page_type: str, path: str, user_agent: str = ""):
     """Supabase access_logs 테이블에 접속 감사 로그 저장"""
-    client.table("access_logs").insert({
+    table(client, "access_logs").insert({
         "ip": ip,
         "page_type": page_type,
         "path": path,
@@ -108,17 +120,18 @@ def save_access_log(client, ip: str, page_type: str, path: str, user_agent: str 
 
 def load_access_logs(client, limit: int = 100) -> List[Dict[str, Any]]:
     """Supabase access_logs 테이블에서 접속 감사 로그 최신순 조회"""
-    res = client.table("access_logs").select("id, ip, page_type, path, user_agent, created_at").order("id", desc=True).limit(limit).execute()
+    res = table(client, "access_logs").select("id, ip, page_type, path, user_agent, created_at").order("id", desc=True).limit(limit).execute()
     return res.data or []
 
 def cleanup_old_access_logs(client, hours: int = 24) -> int:
     """Supabase access_logs 테이블에서 지정 시간(기본 24시간) 이전 로그 자동 삭제"""
     try:
+        schema = get_schema()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
-        res = client.table("access_logs").delete().lt("created_at", cutoff).execute()
+        res = table(client, "access_logs").delete().lt("created_at", cutoff).execute()
         deleted_count = len(res.data) if res.data else 0
         if deleted_count > 0:
-            print(f"[INFO] Supabase: {deleted_count}건의 {hours}시간 경과 감사 로그를 정리했습니다.")
+            print(f"[INFO] Supabase [{schema}]: {deleted_count}건의 {hours}시간 경과 감사 로그를 정리했습니다.")
         return deleted_count
     except Exception as e:
         print(f"[WARN] Supabase 감사 로그 정리 오류: {e}")
@@ -127,12 +140,11 @@ def cleanup_old_access_logs(client, hours: int = 24) -> int:
 def clear_all_access_logs(client) -> int:
     """Supabase access_logs 테이블 전체 초기화/삭제"""
     try:
-        res = client.table("access_logs").delete().neq("id", 0).execute()
+        schema = get_schema()
+        res = table(client, "access_logs").delete().neq("id", 0).execute()
         deleted_count = len(res.data) if res.data else 0
-        print(f"[INFO] Supabase: 전체 {deleted_count}건의 감사 로그를 초기화했습니다.")
+        print(f"[INFO] Supabase [{schema}]: 전체 {deleted_count}건의 감사 로그를 초기화했습니다.")
         return deleted_count
     except Exception as e:
         print(f"[WARN] Supabase 감사 로그 전체 삭제 오류: {e}")
         return 0
-
-

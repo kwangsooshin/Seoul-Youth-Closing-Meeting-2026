@@ -1,44 +1,103 @@
--- Supabase (PostgreSQL) 데이터베이스 스키마
+-- ==============================================================================
+-- 2026 서울청년정책네트워크 총회 현장 추첨
+-- Supabase (PostgreSQL) 멀티 존(dev / service) 스키마 정의 SQL
+-- 
+-- 사용 방법:
+-- 1. Supabase 대시보드 -> 왼쪽 메뉴 [SQL Editor] 접속
+-- 2. 본 스크립트 전체를 복사하여 붙여넣고 [Run] 실행
+-- 3. [Project Settings] -> [API] -> [PostgREST Settings]의 [Exposed schemas] 항목에
+--    기본값인 public 외에 'dev', 'service' 를 추가합니다. (예: public, dev, service)
+-- ==============================================================================
 
--- 1. prizes 테이블 (추첨 등수 및 경품 설정)
-CREATE TABLE IF NOT EXISTS prizes (
+-- ------------------------------------------------------------------------------
+-- 1. 스키마(네임스페이스) 생성
+-- ------------------------------------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS dev;
+CREATE SCHEMA IF NOT EXISTS service;
+
+-- ------------------------------------------------------------------------------
+-- 2. 개발용 (dev) 스키마 테이블 생성
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dev.prizes (
     id BIGSERIAL PRIMARY KEY,
     rank VARCHAR(50) NOT NULL,
     name VARCHAR(100) DEFAULT '',
     count INT NOT NULL DEFAULT 1,
-    sort_order INT NOT NULL DEFAULT 0, -- 관리자 화면 정렬 순서 (0부터 오름차순)
+    sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 2. draw_history 테이블 (추첨 당첨/패스 이력 - prizes 외래키 연동)
-CREATE TABLE IF NOT EXISTS draw_history (
+CREATE TABLE IF NOT EXISTS dev.draw_history (
     id BIGSERIAL PRIMARY KEY,
-    prize_id BIGINT NOT NULL REFERENCES prizes(id) ON DELETE RESTRICT, -- 이력 존재 시 등수 삭제 방지
+    prize_id BIGINT NOT NULL REFERENCES dev.prizes(id) ON DELETE RESTRICT,
     drawn_number INT NOT NULL,
-    status VARCHAR(20) NOT NULL, -- 'CONFIRMED'(당첨 확정) 또는 'PASSED'(부재중 패스)
+    status VARCHAR(20) NOT NULL, -- 'CONFIRMED' 또는 'PASSED'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 3. app_config 테이블 (번호 범위, BGM 링크 등 앱 설정 JSONB 저장)
-CREATE TABLE IF NOT EXISTS app_config (
+CREATE TABLE IF NOT EXISTS dev.app_config (
     id VARCHAR(50) PRIMARY KEY DEFAULT 'current',
-    data JSONB NOT NULL, -- JSONB 형식 설정 데이터
+    data JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 4. access_logs 테이블 (페이지 접속 감사 로그 - IP 및 페이지 유형)
-CREATE TABLE IF NOT EXISTS access_logs (
+CREATE TABLE IF NOT EXISTS dev.access_logs (
     id BIGSERIAL PRIMARY KEY,
     ip VARCHAR(50) NOT NULL,
-    page_type VARCHAR(50) NOT NULL, -- 'display', 'admin' 등
+    page_type VARCHAR(50) NOT NULL,
     path VARCHAR(255) NOT NULL,
     user_agent TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 5. API 역할(service_role, anon, authenticated) 접근 및 시퀀스 권한 부여
-GRANT ALL ON TABLE prizes TO service_role, anon, authenticated;
-GRANT ALL ON TABLE draw_history TO service_role, anon, authenticated;
-GRANT ALL ON TABLE app_config TO service_role, anon, authenticated;
-GRANT ALL ON TABLE access_logs TO service_role, anon, authenticated;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role, anon, authenticated;
+-- ------------------------------------------------------------------------------
+-- 3. 실서비스 운영용 (service) 스키마 테이블 생성
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS service.prizes (
+    id BIGSERIAL PRIMARY KEY,
+    rank VARCHAR(50) NOT NULL,
+    name VARCHAR(100) DEFAULT '',
+    count INT NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS service.draw_history (
+    id BIGSERIAL PRIMARY KEY,
+    prize_id BIGINT NOT NULL REFERENCES service.prizes(id) ON DELETE RESTRICT,
+    drawn_number INT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS service.app_config (
+    id VARCHAR(50) PRIMARY KEY DEFAULT 'current',
+    data JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS service.access_logs (
+    id BIGSERIAL PRIMARY KEY,
+    ip VARCHAR(50) NOT NULL,
+    page_type VARCHAR(50) NOT NULL,
+    path VARCHAR(255) NOT NULL,
+    user_agent TEXT DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- ------------------------------------------------------------------------------
+-- 4. API 역할(service_role, anon, authenticated) 접근 및 시퀀스 권한 부여
+-- ------------------------------------------------------------------------------
+-- dev 스키마 권한
+GRANT USAGE ON SCHEMA dev TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA dev TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA dev TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA dev GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA dev GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+
+-- service 스키마 권한
+GRANT USAGE ON SCHEMA service TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA service TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA service TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA service GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA service GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;

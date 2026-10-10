@@ -26,25 +26,40 @@ FastAPI + WebSocket + uv 기반의 실시간 반응형 현장 추첨 웹 애플�
 
 ---
 
-## 🛠️ 1. Supabase 설정 (선택 사항)
+## 🛠️ 1. Supabase 설정 (개발 / 실서비스 멀티 존 스키마 분리)
 
-Supabase 클라우드 데이터베이스를 연동하려면, Supabase 대시보드([supabase.com](https://supabase.com))의 **SQL Editor**에서 스키마 정의 파일을 복사하여 1회 실행합니다 (미설정 시 로컬 SQLite `lottery.db`로 자동 무중단 동작):
+단일 무료 Supabase 프로젝트에서 **Postgres Schema 분리 방식**을 적용하여 추가 비용 없이 **개발용(`dev`)**과 **실서비스 운영용(`service`)** 데이터를 100% 독립 격리하여 운영할 수 있습니다 (미설정 시 로컬 머신별 SQLite `lottery.db`로 자동 무중단 동작):
 
-👉 **테이블 생성 SQL 파일:** [`db/sql/supabase/schema.sql`](db/sql/supabase/schema.sql)
+### 1단계: SQL Editor에서 스키마 및 테이블 생성
+1. [Supabase 대시보드](https://supabase.com) 접속 후 왼쪽 메뉴의 **[SQL Editor]** (코드 아이콘 `>_`)로 이동합니다.
+2. 아래 스키마 정의 SQL 파일의 내용을 전체 복사하여 붙여넣고 **[Run]**을 실행합니다:
+   - 👉 **통합 스키마 SQL 파일:** [`db/sql/supabase/schema.sql`](db/sql/supabase/schema.sql)
+   - `dev` 및 `service` 스키마와 각각의 4개 테이블(`prizes`, `draw_history`, `app_config`, `access_logs`)이 자동 생성되고 권한이 부여됩니다.
 
-> 💡 `prizes` 및 `app_config` 테이블이 생성되어 비어 있으면 서버 시작 시 기본 등수(3등/2등/1등)와 기본 설정이 자동으로 시드됩니다.
-> 💡 번호 범위·BGM 설정 및 등수 정보는 데이터베이스(Supabase / 로컬 SQLite)에 안전하게 영구 저장됩니다.
+### 2단계: Data API에 스키마 노출 등록 (필수 1회)
+1. 좌측 하단 **⚙️ Project Settings** → **Data API** (또는 `API Settings`) 메뉴로 이동합니다.
+   *(직통 URL: `https://supabase.com/dashboard/project/<내프로젝트ID>/settings/api`)*
+2. **Exposed schemas** 드롭다운 목록에서 방금 생성된 **`dev`**와 **`service`**를 체크/선택합니다. (`public`은 제외하거나 함께 두셔도 무방합니다)
+3. **[Save]** 버튼을 눌러 저장합니다.
+
+> 💡 각 스키마의 `prizes` 및 `app_config` 테이블이 비어 있으면 서버 최초 시작 시 기본 등수(3등/2등/1등)와 기본 설정이 자동으로 시드됩니다.
+> 💡 관리자 콘솔([`/admin`](http://localhost:8000/admin)) 상단의 DB 정보 카드에서 현재 연결된 존(`Supabase 클라우드 [DEV]` 또는 `[SERVICE]`)을 실시간으로 확인할 수 있습니다.
 
 ---
 
 ## ⚙️ 2. 환경 변수 설정 (`.env`)
 
-`.env` 파일에 관리자 비밀번호와 Supabase 정보(선택)를 입력합니다:
+`.env` 파일에 실행 존(`ZONE`)과 관리자 비밀번호, Supabase 정보(선택)를 입력합니다:
 
 ```ini
+# 실행 환경 존 (dev: 개발용, service: 실서비스 운영용)
+# ZONE에 따라 Supabase의 'dev' 또는 'service' 스키마로 자동 분리 연결됩니다.
+ZONE=dev
+
+# 관리자 페이지 비밀번호
 ADMIN_PASSWORD=admin1234
 
-# Supabase 연동 시 (미입력 시 로컬 SQLite로 자동 작동)
+# Supabase 연동 시 (미입력 시 로컬 머신별 SQLite로 자동 작동)
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_KEY=your-supabase-key
 ```
@@ -99,6 +114,7 @@ uv run uvicorn main:app --reload --port 8000
      uv run uvicorn main:app --host 0.0.0.0 --port $PORT
      ```
 5. **Environment Variables** 탭에서 환경 변수 등록:
+   - `ZONE`: `service` *(실서비스 운영용 스키마 연결)*
    - `ADMIN_PASSWORD`: 행사 당일 사용할 관리자 비밀번호 (기본값: `admin1234`)
    - `SUPABASE_URL`: (권장) Supabase Project URL *(클라우드 배포 시 인스턴스 재시작 간 데이터 영구 보존을 위해 Supabase 연동 권장)*
    - `SUPABASE_KEY`: (권장) Supabase Key
