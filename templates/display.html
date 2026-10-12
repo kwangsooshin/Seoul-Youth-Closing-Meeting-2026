@@ -880,6 +880,57 @@
       0%, 100% { transform: translateX(-50%) scale(1.02); }
       50% { transform: translateX(-50%) scale(1.08); }
     }
+
+    /* 하단 푸터 (Footer) */
+    .display-footer {
+      padding: 16px 40px;
+      margin-top: auto;
+      border-top: 1px solid rgba(226, 232, 240, 0.85);
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      z-index: 10;
+      text-align: center;
+    }
+
+    .display-footer p,
+    .standby-footer p {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .display-footer a,
+    .standby-footer a {
+      color: var(--primary-blue);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    .display-footer a:hover,
+    .standby-footer a:hover {
+      color: var(--primary-navy);
+      text-decoration: underline;
+    }
+
+    .standby-footer {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 1001;
+    }
   </style>
 </head>
 <body class="standby-active">
@@ -904,6 +955,15 @@
       </div>
       <div class="standby-main-text">잠시 후 현장 추첨이 시작됩니다!</div>
       <div class="standby-sub-text">사회자의 안내에 귀 기울여 주세요. 곧 당첨의 주인공을 뽑습니다 ✨</div>
+    </div>
+    <div class="standby-footer">
+      <p>
+        © 2026 kwangsoo
+        <span aria-hidden="true"> · </span>
+        <a href="https://github.com/kwangsooshin/Seoul-Youth-Closing-Meeting-2026" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      </p>
     </div>
   </div>
 
@@ -1000,6 +1060,16 @@
       </div>
     </aside>
   </main>
+
+  <footer class="display-footer">
+    <p>
+      © 2026 kwangsoo
+      <span aria-hidden="true"> · </span>
+      <a href="https://github.com/kwangsooshin/Seoul-Youth-Closing-Meeting-2026" target="_blank" rel="noopener noreferrer">
+        GitHub
+      </a>
+    </p>
+  </footer>
 
   <script>
     // --- YouTube IFrame BGM 플레이어 (무한 반복 & Autoplay 대응) ---

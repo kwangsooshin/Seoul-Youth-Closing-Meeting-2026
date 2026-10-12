@@ -582,6 +582,38 @@
       opacity: 0.35;
       cursor: not-allowed;
     }
+
+    /* 하단 푸터 (Footer) */
+    .admin-footer {
+      background: #111827;
+      border-top: 1px solid var(--card-border);
+      padding: 16px 24px;
+      margin-top: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      z-index: 10;
+      text-align: center;
+    }
+
+    .admin-footer p {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .admin-footer a {
+      color: var(--primary-sky);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    .admin-footer a:hover {
+      color: #7dd3fc;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -989,6 +1021,16 @@
       </div>
     </section>
   </main>
+
+  <footer class="admin-footer">
+    <p>
+      © 2026 kwangsoo
+      <span aria-hidden="true"> · </span>
+      <a href="https://github.com/kwangsooshin/Seoul-Youth-Closing-Meeting-2026" target="_blank" rel="noopener noreferrer">
+        GitHub
+      </a>
+    </p>
+  </footer>
 
   <script>
     let adminPassword = sessionStorage.getItem('admin_pwd') || '';
