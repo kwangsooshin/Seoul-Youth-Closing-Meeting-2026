@@ -3,7 +3,6 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from core.config import ADMIN_PASSWORD
 from core.state import state
 from core.websocket import manager
 from core.auth import is_authenticated_admin
@@ -13,16 +12,14 @@ router = APIRouter(prefix="/api/draw", tags=["Draw"])
 
 
 class LotterySessionRequest(BaseModel):
-    password: Optional[str] = ""
     started: bool
 
 
 @router.post("/session")
 async def set_lottery_session(req: LotterySessionRequest, request: Request):
     """현장 추첨 이벤트 시작 및 대기 모드 전환"""
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
-
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     state.is_started = req.started
     stats = state.get_stats()
@@ -35,20 +32,18 @@ async def set_lottery_session(req: LotterySessionRequest, request: Request):
 
 
 class DrawStartRequest(BaseModel):
-    password: Optional[str] = ""
     prize_id: int
 
 
 class PrizeSelectRequest(BaseModel):
-    password: Optional[str] = ""
     prize_id: int
 
 
 @router.post("/select-prize")
 async def select_prize(req: PrizeSelectRequest, request: Request):
     """관리자 콘솔에서 추첨할 등수 선택 변경 시 디스플레이와 실시간 동기화"""
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     prize = state.find_prize(req.prize_id)
     if not prize:
@@ -73,9 +68,8 @@ async def select_prize(req: PrizeSelectRequest, request: Request):
 
 @router.post("/start")
 async def start_draw(req: DrawStartRequest, request: Request):
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
-
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     if not state.is_started:
         raise HTTPException(status_code=400, detail="현재 대기화면 상태입니다. 먼저 '대기화면 해제'를 해주세요.")
@@ -116,10 +110,6 @@ async def start_draw(req: DrawStartRequest, request: Request):
     return {"success": True, "picked_number": picked_number, "data": state.pending_draw}
 
 
-class DrawActionRequest(BaseModel):
-    password: Optional[str] = ""
-
-
 async def _finalize_pending_draw(status: str, event_type: str):
     """진행 중인 추첨을 확정(CONFIRMED) 또는 패스(PASSED)로 기록"""
     record = {
@@ -148,10 +138,10 @@ async def _finalize_pending_draw(status: str, event_type: str):
 
 
 @router.post("/confirm")
-async def confirm_draw(req: DrawActionRequest, request: Request):
+async def confirm_draw(request: Request):
     """현재 번호 당첨 확정"""
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     if not state.pending_draw:
         raise HTTPException(status_code=400, detail="확정할 추첨 번호가 없습니다.")
@@ -160,10 +150,10 @@ async def confirm_draw(req: DrawActionRequest, request: Request):
 
 
 @router.post("/pass")
-async def pass_draw(req: DrawActionRequest, request: Request):
+async def pass_draw(request: Request):
     """호명 시 부재자 패스 처리 (넘어가기)"""
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     if not state.pending_draw:
         raise HTTPException(status_code=400, detail="패스할 추첨 번호가 없습니다.")
@@ -172,10 +162,10 @@ async def pass_draw(req: DrawActionRequest, request: Request):
 
 
 @router.post("/cancel-last")
-async def cancel_last_draw(req: DrawActionRequest, request: Request):
+async def cancel_last_draw(request: Request):
     """방금 확정/패스된 가장 최근 추첨 건 취소 및 롤백"""
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     if not state.is_started:
         raise HTTPException(status_code=400, detail="현재 대기화면 상태에서는 취소할 수 없습니다. 먼저 '대기화면 해제'를 해주세요.")
@@ -199,15 +189,11 @@ async def cancel_last_draw(req: DrawActionRequest, request: Request):
     return {"success": True, "cancelled": removed_item}
 
 
-class DrawResetRequest(BaseModel):
-    password: Optional[str] = ""
-
-
 @router.post("/reset")
-async def reset_draw(req: DrawResetRequest, request: Request):
+async def reset_draw(request: Request):
     """추첨 이력 전체 초기화"""
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     # DB 초기화 (Supabase 및 로컬 SQLite 모두 초기화)
     clear_records()

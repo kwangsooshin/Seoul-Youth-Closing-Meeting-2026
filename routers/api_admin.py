@@ -1,3 +1,6 @@
+import hmac
+import time
+from collections import defaultdict
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -5,10 +8,37 @@ from pydantic import BaseModel
 from core.config import ADMIN_PASSWORD, DEFAULT_BGM_URL
 from core.state import state
 from core.websocket import manager
-from core.auth import create_admin_token, is_authenticated_admin
+from core.auth import create_admin_token, is_authenticated_admin, revoke_admin_token
 from db import save_prizes, load_prizes, load_history, save_app_config, load_access_logs, cleanup_old_access_logs, clear_all_access_logs
 
 router = APIRouter(prefix="/api", tags=["Admin"])
+
+# 관리자 로그인 시도 무차별 대입(Brute-force) 방지 메모리 저장소
+_failed_login_attempts: dict = defaultdict(list)
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 60
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+        if parts:
+            return parts[0]
+    return request.client.host if request.client else "unknown"
+
+
+def _check_login_rate_limit(client_ip: str):
+    now = time.time()
+    # 60초 지난 실패 기록 제거
+    attempts = [t for t in _failed_login_attempts[client_ip] if now - t < LOGIN_LOCKOUT_SECONDS]
+    _failed_login_attempts[client_ip] = attempts
+    if len(attempts) >= MAX_LOGIN_ATTEMPTS:
+        retry_after = int(LOGIN_LOCKOUT_SECONDS - (now - attempts[0]))
+        raise HTTPException(
+            status_code=429,
+            detail=f"비밀번호 입력 시도 횟수를 초과했습니다. {max(1, retry_after)}초 후 다시 시도해주세요."
+        )
 
 
 class VerifyPasswordRequest(BaseModel):
@@ -16,11 +46,33 @@ class VerifyPasswordRequest(BaseModel):
 
 
 @router.post("/admin/verify")
-async def verify_admin(req: VerifyPasswordRequest):
-    if req.password == ADMIN_PASSWORD:
+async def verify_admin(req: VerifyPasswordRequest, request: Request):
+    client_ip = _get_client_ip(request)
+    _check_login_rate_limit(client_ip)
+
+    # 타이밍 공격 방지를 위한 hmac.compare_digest 사용
+    if hmac.compare_digest(req.password, ADMIN_PASSWORD):
+        _failed_login_attempts.pop(client_ip, None)
         token = create_admin_token()
         return {"success": True, "token": token}
+
+    _failed_login_attempts[client_ip].append(time.time())
     raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
+
+
+@router.post("/admin/logout")
+async def logout_admin(request: Request):
+    """세션 토큰 폐기 (로그아웃)"""
+    auth_header = request.headers.get("authorization", "")
+    token = None
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    else:
+        token = request.headers.get("x-admin-token", "").strip()
+
+    if token:
+        revoke_admin_token(token)
+    return {"success": True, "message": "성공적으로 로그아웃되었습니다."}
 
 
 
@@ -37,7 +89,6 @@ class PrizeInput(BaseModel):
 
 
 class ConfigUpdateRequest(BaseModel):
-    password: Optional[str] = ""
     min_number: int
     max_number: int
     bgm_youtube_url: Optional[str] = DEFAULT_BGM_URL
@@ -46,8 +97,8 @@ class ConfigUpdateRequest(BaseModel):
 
 @router.post("/config")
 async def update_config(req: ConfigUpdateRequest, request: Request):
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
 
     if req.min_number >= req.max_number:
@@ -102,15 +153,14 @@ async def update_config(req: ConfigUpdateRequest, request: Request):
 
 
 class BgmControlRequest(BaseModel):
-    password: Optional[str] = ""
     action: str  # "play", "pause", "mute", "unmute", "set_volume"
     volume: Optional[int] = 30
 
 
 @router.post("/bgm/control")
 async def control_bgm(req: BgmControlRequest, request: Request):
-    if not is_authenticated_admin(request, legacy_password=req.password):
-        raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
 
     # 오디오 제어 액션별 상태 반영
@@ -147,9 +197,9 @@ async def control_bgm(req: BgmControlRequest, request: Request):
 
 
 @router.get("/admin/audit-logs")
-async def get_audit_logs(request: Request, limit: int = 100, password: Optional[str] = None):
-    """페이지 접속 감사 로그(Audit Log) 목록 조회 (Bearer 세션 토큰 또는 비밀번호 인증)"""
-    if not is_authenticated_admin(request, legacy_password=password):
+async def get_audit_logs(request: Request, limit: int = 100):
+    """페이지 접속 감사 로그(Audit Log) 목록 조회 (Bearer 세션 토큰 인증)"""
+    if not is_authenticated_admin(request):
         raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     # limit이 0 이하이거나 미지정 시 최대 1000건(최근 24시간 전체 보관분 수용) 조회
@@ -159,10 +209,10 @@ async def get_audit_logs(request: Request, limit: int = 100, password: Optional[
 
 
 @router.post("/admin/audit-logs/cleanup")
-async def cleanup_audit_logs_manual(request: Request, hours: int = 24, password: Optional[str] = None):
+async def cleanup_audit_logs_manual(request: Request, hours: int = 24):
     """지정된 시간(기본 24시간) 이전의 감사 로그 수동 정리 (hours=0 시 전체 정리)"""
-    if not is_authenticated_admin(request, legacy_password=password):
-        raise HTTPException(status_code=401, detail="인증 실패")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     if hours <= 0:
         deleted_count = clear_all_access_logs()
@@ -173,10 +223,10 @@ async def cleanup_audit_logs_manual(request: Request, hours: int = 24, password:
 
 
 @router.post("/admin/audit-logs/clear-all")
-async def clear_all_audit_logs_endpoint(request: Request, password: Optional[str] = None):
+async def clear_all_audit_logs_endpoint(request: Request):
     """모든 접속 감사 로그 전체 초기화/삭제"""
-    if not is_authenticated_admin(request, legacy_password=password):
-        raise HTTPException(status_code=401, detail="인증 실패")
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     deleted_count = clear_all_access_logs()
     return {"success": True, "message": f"전체 접속 감사 로그 {deleted_count}건을 모두 초기화했습니다."}

@@ -24,6 +24,9 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin1234")
 ZONE = os.getenv("ZONE", "dev").strip().lower()
 SCHEMA_NAME = "service" if ZONE in ("service", "prod", "production") else "dev"
 
+if ZONE in ("service", "prod", "production") and ADMIN_PASSWORD == "admin1234":
+    print("[SECURITY WARNING] 운영 환경(ZONE=service)에서 기본 비밀번호('admin1234')가 사용되고 있습니다. 보안을 위해 환경변수 ADMIN_PASSWORD를 반드시 안전한 값으로 변경하세요!")
+
 DEFAULT_BGM_URL = "https://www.youtube.com/watch?v=ujCh9JIxCeA"
 
 DEFAULT_CONFIG: Dict[str, Any] = {

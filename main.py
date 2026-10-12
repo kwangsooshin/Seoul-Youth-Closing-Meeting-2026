@@ -45,6 +45,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 # 정적 파일 마운트 (static 폴더 존재 시)
 static_dir = BASE_DIR / "static"
 if static_dir.exists():

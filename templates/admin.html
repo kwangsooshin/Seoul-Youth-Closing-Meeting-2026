@@ -1124,16 +1124,31 @@
     // --- 관리자 API 공통 요청 헬퍼 (Authorization: Bearer 세션 토큰 자동 첨부) ---
     async function adminFetch(url, options = {}) {
       options.headers = options.headers || {};
+      if (!adminToken && adminPassword) {
+        try {
+          const vRes = await fetch('/api/admin/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: adminPassword })
+          });
+          if (vRes.ok) {
+            const vData = await vRes.json();
+            if (vData.token) {
+              adminToken = vData.token;
+              sessionStorage.setItem('admin_token', adminToken);
+            }
+          }
+        } catch (e) {}
+      }
       if (adminToken) {
         options.headers['Authorization'] = `Bearer ${adminToken}`;
-      } else if (adminPassword) {
-        options.headers['Authorization'] = `Bearer ${adminPassword}`;
       }
       try {
         const res = await fetch(url, options);
         if (res.status === 401) {
           // 세션 토큰 만료 시 로그인 모달 표시
           sessionStorage.removeItem('admin_token');
+          adminToken = '';
           const modal = document.getElementById('authModal');
           if (modal) modal.style.display = 'flex';
         }

@@ -2,7 +2,6 @@ import secrets
 import time
 from typing import Optional, Dict
 from fastapi import Request
-from core.config import ADMIN_PASSWORD
 
 # 세션 토큰 인메모리 저장소: token -> expire_timestamp
 _sessions: Dict[str, float] = {}
@@ -34,12 +33,11 @@ def verify_admin_token(token: Optional[str]) -> bool:
     return False
 
 
-def is_authenticated_admin(request: Request, legacy_password: Optional[str] = None) -> bool:
+def is_authenticated_admin(request: Request) -> bool:
     """
-    관리자 인증 검증:
+    관리자 세션 토큰 인증 검증:
     1. Authorization: Bearer <token> 헤더
     2. X-Admin-Token: <token> 헤더
-    3. 하위 호환용 레거시 비밀번호 검증
     """
     # 1. Bearer Token
     auth_header = request.headers.get("authorization", "")
@@ -51,10 +49,6 @@ def is_authenticated_admin(request: Request, legacy_password: Optional[str] = No
     # 2. X-Admin-Token
     custom_token = request.headers.get("x-admin-token", "").strip()
     if verify_admin_token(custom_token):
-        return True
-
-    # 3. 하위 호환 (레거시 비밀번호 파라미터)
-    if legacy_password and legacy_password == ADMIN_PASSWORD:
         return True
 
     return False
