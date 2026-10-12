@@ -1103,7 +1103,7 @@
       // YouTube 오디오 언락 및 대기열 실행
       if (ytPlayer && isYtReady) {
         try {
-          if (soundEnabled && !isBgmPaused) {
+          if (!isMasterMuted && !isBgmPaused) {
             ytPlayer.unMute();
             ytPlayer.setVolume(normalBgmVolume);
             ytPlayer.playVideo();
@@ -1185,7 +1185,7 @@
                 if (cmd.action === 'play') {
                   fadeInBgm(cmd.volume || normalBgmVolume, 3000);
                 }
-              } else if (soundEnabled && !isBgmPaused && isAudioUnlocked) {
+              } else if (!isMasterMuted && !isBgmPaused && isAudioUnlocked) {
                 forceStartBgm();
               }
             },
@@ -1195,7 +1195,7 @@
                 if (!isBgmPaused) event.target.playVideo();
               } else if (event.data === YT.PlayerState.PLAYING) {
                 // 재생 시작 시 음소거 해제 보장
-                if (soundEnabled && !isBgmPaused && isAudioUnlocked) {
+                if (!isMasterMuted && !isBgmPaused && isAudioUnlocked) {
                   try { event.target.unMute(); } catch (e) {}
                 }
               }
@@ -1225,7 +1225,7 @@
       }
       try {
         ytPlayer.setVolume(normalBgmVolume);
-        if (soundEnabled && isAudioUnlocked) {
+        if (!isMasterMuted && isAudioUnlocked) {
           ytPlayer.unMute();
         }
         ytPlayer.playVideo();
@@ -1246,10 +1246,10 @@
           if (state !== 1) { // 1: PLAYING
             try {
               ytPlayer.playVideo();
-              if (soundEnabled && isAudioUnlocked) ytPlayer.unMute();
+              if (!isMasterMuted && isAudioUnlocked) ytPlayer.unMute();
             } catch (e) {}
           } else {
-            if (soundEnabled && isAudioUnlocked) {
+            if (!isMasterMuted && isAudioUnlocked) {
               try { ytPlayer.unMute(); } catch (e) {}
             }
             clearInterval(bgmCheckInterval);
@@ -1294,7 +1294,7 @@
 
     function duckBgm(targetVol = 10, durationMs = 3800) {
       if (!ytPlayer || !ytPlayer.setVolume) return;
-      if (!soundEnabled || isBgmPaused) return;
+      if (isMasterMuted || isBgmPaused) return;
 
       isDucking = true;
       if (duckRestoreTimer) clearTimeout(duckRestoreTimer);
@@ -1312,7 +1312,7 @@
 
     function fadeRestoreBgm(startVol = 5) {
       if (!ytPlayer || !ytPlayer.setVolume) return;
-      if (!soundEnabled || isBgmPaused) return;
+      if (isMasterMuted || isBgmPaused) return;
 
       if (duckFadeInterval) clearInterval(duckFadeInterval);
 
@@ -1344,7 +1344,7 @@
       if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
 
       isBgmPaused = false;
-      updateSoundStatusBadge(true);
+      updateSoundStatusBadge();
 
       // 브라우저 오디오가 아직 언락되지 않은 경우 배너를 강조하여 현장 클릭 유도
       if (!isAudioUnlocked) {
@@ -1366,7 +1366,7 @@
 
       try {
         ytPlayer.setVolume(0);
-        if (soundEnabled && isAudioUnlocked) {
+        if (!isMasterMuted && isAudioUnlocked) {
           ytPlayer.unMute();
         }
         ytPlayer.playVideo();
@@ -1443,9 +1443,16 @@
       }, stepIntervalMs);
     }
 
-    // --- Web Audio API 사운드 신디사이저 (풍성하고 웅장한 효과음) ---
-    let soundEnabled = true; // 소리 기본 ON
+    // --- Web Audio API 사운드 신디사이저 & 원격 오디오 상태 관리 ---
+    let isMasterMuted = false; // 전체 음소거 (BGM & 현장 사운드)
+    let isBgmPaused = true;    // BGM 기본값 OFF (일시정지 상태)
+    let isSfxMuted = false;    // 현장 사운드(효과음) 음소거
+    let soundEnabled = true;   // 구 버전 호환용 alias
     let audioCtx = null;
+
+    function isSfxPlayable() {
+      return !isMasterMuted && !isSfxMuted;
+    }
 
     function getAudioContext() {
       if (!audioCtx) {
@@ -1457,32 +1464,74 @@
       return audioCtx;
     }
 
-    // 헤더 사운드 상태 뱃지 업데이트 (아이콘만 표시, 설명은 툴팁 / 사운드 제어는 admin에서만 수행)
-    // 우선순위: 대기(⏳) > 음소거(🔇) > BGM 일시정지(⏸️) > 사운드 ON(🔊)
-    let isBgmPaused = false;
-
-    function updateSoundStatusBadge(enabled = soundEnabled, isStandby = false) {
-      soundEnabled = enabled;
+    // 헤더 사운드 상태 뱃지 업데이트 (아이콘 및 툴팁 텍스트)
+    function updateSoundStatusBadge() {
+      soundEnabled = !isMasterMuted;
       const badge = document.getElementById('soundStatusBadge');
       const icon = document.getElementById('soundIcon');
       if (!badge || !icon) return;
 
       let state;
       badge.classList.remove('muted', 'standby', 'paused');
-      if (!soundEnabled) {
+      if (isMasterMuted) {
         badge.classList.add('muted');
         icon.textContent = '🔇';
-        state = '사운드 OFF (음소거)';
+        state = '전체 음소거 (BGM & 현장 사운드 OFF)';
+      } else if (isBgmPaused && isSfxMuted) {
+        badge.classList.add('muted');
+        icon.textContent = '🔇';
+        state = '모든 사운드 OFF (BGM 일시정지 & 현장 효과음 OFF)';
       } else if (isBgmPaused) {
         badge.classList.add('paused');
-        icon.textContent = '⏸️';
-        state = 'BGM 일시정지 (효과음 ON)';
+        icon.textContent = '🔔';
+        state = '현장 사운드 ON (BGM 일시정지)';
+      } else if (isSfxMuted) {
+        badge.classList.add('paused');
+        icon.textContent = '🎵';
+        state = '배경음악 ON (현장 효과음 OFF)';
       } else {
         icon.textContent = '🔊';
-        state = '사운드 ON';
+        state = '전체 사운드 ON';
       }
-      badge.title = `${state} · 사운드 설정은 관리자 페이지에서 원격 제어됩니다`;
+      badge.title = `${state} · 관리자 페이지에서 실시간 원격 제어됩니다`;
       badge.setAttribute('aria-label', state);
+    }
+
+    function applyAudioState(state) {
+      if (!state) return;
+      if (typeof state.master_muted === 'boolean') {
+        isMasterMuted = state.master_muted;
+      }
+      if (typeof state.bgm_paused === 'boolean') {
+        const prevBgmPaused = isBgmPaused;
+        isBgmPaused = state.bgm_paused;
+        if (isBgmPaused && !prevBgmPaused) {
+          fadeOutBgm(2500);
+        } else if (!isBgmPaused && prevBgmPaused && !isMasterMuted) {
+          fadeInBgm(normalBgmVolume, 2500);
+        }
+      }
+      if (typeof state.sfx_muted === 'boolean') {
+        isSfxMuted = state.sfx_muted;
+      }
+      if (typeof state.volume === 'number') {
+        normalBgmVolume = state.volume;
+        if (!isDucking && ytPlayer && ytPlayer.setVolume && !fadeInterval) {
+          try { ytPlayer.setVolume(normalBgmVolume); } catch (e) {}
+        }
+      }
+
+      // Master Mute에 따른 YouTube 음소거 동기화
+      if (ytPlayer) {
+        if (isMasterMuted) {
+          try { if (ytPlayer.mute) ytPlayer.mute(); } catch (e) {}
+        } else if (!isBgmPaused && isAudioUnlocked) {
+          try { if (ytPlayer.unMute) ytPlayer.unMute(); } catch (e) {}
+        }
+      }
+
+      soundEnabled = !isMasterMuted;
+      updateSoundStatusBadge();
     }
 
     // 접속 즉시 오디오 초기화 및 unMute 시도
@@ -1494,7 +1543,9 @@
         }
       } catch (e) {}
 
-      forceStartBgm();
+      if (!isBgmPaused) {
+        forceStartBgm();
+      }
     }
 
     // 브라우저의 오디오 자동재생 보안 정책을 우회하여 마우스 이동, 클릭, 키보드, 탭 포커스 등 첫 신호 발생 즉시 소리 100% 보장
@@ -1510,7 +1561,7 @@
 
     // 사운드 정상 확인용 경쾌한 징글 ("띠링~")
     function playTestJingle() {
-      if (!soundEnabled) return;
+      if (!isSfxPlayable()) return;
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
@@ -1533,7 +1584,7 @@
 
     // 롤링 틱 사운드 (선명하고 긴장감 넘치는 슬롯머신 틱!)
     function playTickSound() {
-      if (!soundEnabled) return;
+      if (!isSfxPlayable()) return;
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
@@ -1552,7 +1603,7 @@
 
     // 1) 당첨 번호 출현/안착 사운드 (두둥-탁! 벨 & 심벌즈 팡파레 도입부)
     function playRevealSound() {
-      if (!soundEnabled) return;
+      if (!isSfxPlayable()) return;
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
@@ -1590,7 +1641,7 @@
 
     // 2) 최종 당첨 확정 사운드 (웅장한 5단계 브라스 팡파레 + 풍성한 축하 화음 피날레)
     function playFinalConfirmSound() {
-      if (!soundEnabled) return;
+      if (!isSfxPlayable()) return;
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
@@ -1637,7 +1688,7 @@
 
     // 부재중 패스 사운드 (아쉬운 띠-로-리)
     function playPassSound() {
-      if (!soundEnabled) return;
+      if (!isSfxPlayable()) return;
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
@@ -1663,7 +1714,7 @@
 
     // 당첨 취소 사운드 (되돌리기 안내 톤)
     function playCancelSound() {
-      if (!soundEnabled) return;
+      if (!isSfxPlayable()) return;
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
@@ -1884,6 +1935,9 @@
         console.log('📩 이벤트 수신:', msg);
 
         if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED') {
+          if (msg.data && msg.data.audio_state) {
+            applyAudioState(msg.data.audio_state);
+          }
           if (msg.data && msg.data.is_lottery_started !== undefined) {
             setLotterySessionState(msg.data.is_lottery_started);
           }
@@ -1959,33 +2013,46 @@
           document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 대기 모드로 전환합니다.';
           renderState(msg.data);
         } else if (msg.type === 'BGM_CONTROL') {
-          // 관리자 원격 BGM & 사운드 제어 이벤트 (재생, 일시정지, 볼륨, 음소거 - 3초 페이드 인/아웃 적용)
+          // 관리자 원격 BGM & 현장 사운드 제어 이벤트
           try {
-            if (msg.action === 'play') {
-              fadeInBgm(msg.volume || normalBgmVolume, 3000);
-            } else if (msg.action === 'pause') {
-              fadeOutBgm(3000);
-            } else if (msg.action === 'mute') {
-              updateSoundStatusBadge(false);
-              if (ytPlayer && ytPlayer.mute) {
-                ytPlayer.mute();
+            if (msg.action === 'stop' || msg.action === 'bgm_stop') {
+              isBgmPaused = true;
+              if (fadeInterval) { clearInterval(fadeInterval); fadeInterval = null; }
+              if (ytPlayer) {
+                try {
+                  if (ytPlayer.seekTo) ytPlayer.seekTo(0);
+                  if (ytPlayer.stopVideo) ytPlayer.stopVideo();
+                  else if (ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+                } catch (e) {}
               }
-            } else if (msg.action === 'unmute') {
-              fadeInBgm(normalBgmVolume, 2000);
-            } else if (msg.action === 'set_volume') {
-              normalBgmVolume = msg.volume;
-              if (ytPlayer && ytPlayer.setVolume && !fadeInterval) {
-                if (!isDucking) {
+              if (msg.audio_state) applyAudioState(msg.audio_state);
+              else updateSoundStatusBadge();
+            } else if (msg.audio_state) {
+              applyAudioState(msg.audio_state);
+            } else {
+              if (msg.action === 'play' || msg.action === 'bgm_play') {
+                isBgmPaused = false;
+                if (!isMasterMuted) fadeInBgm(msg.volume || normalBgmVolume, 3000);
+              } else if (msg.action === 'pause' || msg.action === 'bgm_pause') {
+                fadeOutBgm(3000);
+              } else if (msg.action === 'mute' || msg.action === 'master_mute') {
+                isMasterMuted = true;
+                if (ytPlayer && ytPlayer.mute) ytPlayer.mute();
+              } else if (msg.action === 'unmute' || msg.action === 'master_unmute') {
+                isMasterMuted = false;
+                if (!isBgmPaused) fadeInBgm(normalBgmVolume, 2000);
+              } else if (msg.action === 'sfx_mute') {
+                isSfxMuted = true;
+              } else if (msg.action === 'sfx_unmute') {
+                isSfxMuted = false;
+              } else if (msg.action === 'set_volume') {
+                normalBgmVolume = msg.volume;
+                if (ytPlayer && ytPlayer.setVolume && !fadeInterval && !isDucking) {
                   ytPlayer.setVolume(msg.volume);
                 }
-                if (msg.volume > 0) {
-                  ytPlayer.unMute();
-                  updateSoundStatusBadge(true);
-                } else {
-                  ytPlayer.mute();
-                  updateSoundStatusBadge(false);
-                }
               }
+              soundEnabled = !isMasterMuted;
+              updateSoundStatusBadge();
             }
           } catch (e) {
             console.warn('BGM/사운드 원격 제어 실행 오류:', e);

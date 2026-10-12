@@ -688,62 +688,97 @@
 
       <!-- 🎵 현장 사운드 & BGM 실시간 원격 제어 카드 -->
       <div class="card" style="border-color: rgba(2, 132, 199, 0.45); background: rgba(30, 41, 59, 0.95); margin-bottom: 20px;">
-        <div class="card-title" style="margin-bottom: 12px;">
-          <span style="display:flex; align-items:center; gap:8px;">
-            <span style="color: var(--primary-sky);">🎵 현장 사운드 & 배경음악(BGM) 실시간 제어</span>
-            <span id="bgmStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(2, 132, 199, 0.2); color: #38bdf8; font-weight: 700;">🟢 소리 ON</span>
-          </span>
-          <span style="font-size:0.85rem; color: var(--accent-orange); font-weight: 700;" id="bgmVolLabel">볼륨: 30%</span>
+        <div class="card-title" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <span style="color: var(--primary-sky); font-weight: 700; font-size: 1.05rem;">🎵 현장 사운드 & 배경음악(BGM) 실시간 제어</span>
         </div>
         <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px;">
-          송출 화면(Display)의 사운드 ON/OFF, 음량 및 BGM 재생이 실시간으로 원격 동기화됩니다.
+          송출 화면(Display)의 전체 사운드, 현장 효과음(SFX), 배경음악(BGM)을 실시간으로 원격 동기화 제어합니다.
         </p>
-        <div style="background: rgba(2, 132, 199, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; color: #bae6fd; margin-bottom: 14px; line-height: 1.5;">
+        <div style="background: rgba(2, 132, 199, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; color: #bae6fd; margin-bottom: 16px; line-height: 1.5;">
           💡 <strong>브라우저 사운드 정책 안내:</strong> 크롬 등 브라우저 정책(Autoplay)상 송출 화면(<code>/display</code>)을 새로 연 직후에는 <strong>화면을 최소 1회 클릭</strong>해야 소리가 정상 송출됩니다. (디스플레이 상단에 활성화 알림 배너 제공)
         </div>
-        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
-          <button class="btn btn-primary" style="padding: 10px 20px; font-size: 0.95rem;" onclick="controlBgm('play')">
-            ▶️ 음악 재생
-          </button>
-          <button class="btn btn-secondary" style="padding: 10px 20px; font-size: 0.95rem;" onclick="controlBgm('pause')">
-            ⏸️ 일시 정지
-          </button>
-          <button class="btn btn-secondary" style="padding: 10px 16px; font-size: 0.95rem;" id="btnBgmToggleMute" onclick="toggleBgmMute()">
-            🔇 음소거 (사운드 OFF)
-          </button>
-        </div>
 
-        <!-- 슬라이더 & 빠른 볼륨 조절 프리셋 -->
-        <div style="background: rgba(0, 0, 0, 0.25); padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08);">
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-            <span style="font-size: 1rem;">🔈</span>
-            <input type="range" id="bgmVolumeSlider" min="0" max="100" value="30" style="flex:1; cursor: pointer; accent-color: var(--accent-orange);" oninput="onBgmVolumeChange(this.value)">
-            <span style="font-size: 1rem;">🔊</span>
+        <!-- 1) 현장 마스터 제어 (전체 음소거) -->
+        <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.92rem; font-weight: 700; color: #f1f5f9;">🔊 현장 마스터 제어</span>
+              <span id="masterStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: 700;">🟢 소리 ON</span>
+            </div>
+            <span style="font-size: 0.8rem; color: #94a3b8;">배경음악(BGM)과 현장 효과음을 포함한 모든 소리를 일괄 제어</span>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
-            <span style="font-size: 0.78rem; color: #94a3b8; margin-right: 4px;">빠른 조절:</span>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(15)">15% (작게)</button>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245, 144, 30, 0.1);" onclick="setBgmVolumePreset(30)">30% (권장 기본)</button>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(50)">50% (보통)</button>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="setBgmVolumePreset(70)">70% (크게)</button>
+          <div>
+            <button id="btnToggleMasterMute" class="btn btn-secondary" style="width: 100%; padding: 11px 16px; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;" onclick="toggleMasterMute()">
+              🔇 전체 음소거
+            </button>
           </div>
         </div>
-      </div>
 
-      <!-- 🎶 배경음악 (YouTube BGM) 음원 설정 카드 -->
-      <div class="card" style="margin-bottom: 20px;">
-        <div class="card-title">
-          <span>🎶 배경음악 (YouTube BGM) 음원 설정</span>
+        <!-- 2) 현장 사운드 설정 (효과음 전용 제어) -->
+        <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.92rem; font-weight: 700; color: #f1f5f9;">🔔 현장 사운드 설정</span>
+              <span id="sfxStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(168, 85, 247, 0.2); color: #c084fc; font-weight: 700;">🔔 현장효과음 ON</span>
+            </div>
+            <span style="font-size: 0.8rem; color: #94a3b8;">추첨 롤링 틱음, 당첨 발표음, 팡파레 효과음만 선택적 제어</span>
+          </div>
+          <div>
+            <button id="btnToggleSfxMute" class="btn btn-secondary" style="width: 100%; padding: 11px 16px; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;" onclick="toggleSfxMute()">
+              🔕 현장 사운드 끄기
+            </button>
+          </div>
         </div>
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; margin-bottom: 6px; font-size: 0.9rem; color: #cbd5e1;">YouTube 영상 링크 (현장 스크린에서 무한 반복 재생됩니다)</label>
-          <input type="text" id="cfgYoutube" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=ujCh9JIxCeA" style="width: 100%;">
-          <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 6px;">
-            기본 추천: <a href="https://www.youtube.com/watch?v=ujCh9JIxCeA" target="_blank" style="color: var(--primary-sky); text-decoration: underline;">Lucky Draw Music (행사 추첨 긴장감 & 축하 BGM)</a>
-          </small>
-        </div>
-        <div style="text-align: right;">
-          <button class="btn btn-orange" onclick="saveBgmOnly()">💾 BGM 음원 링크 저장하기</button>
+
+        <!-- 3) 하단 내부 서브 블록: 🎶 배경음악(BGM) 통합 제어 & 음원 설정 -->
+        <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 14px 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.92rem; font-weight: 700; color: #f1f5f9;">🎶 배경음악(BGM) 실시간 제어 & 음원 설정</span>
+              <span id="bgmStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 700;">⏸️ BGM 일시정지</span>
+            </div>
+            <span style="font-size:0.85rem; color: var(--accent-orange); font-weight: 700;" id="bgmVolLabel">볼륨: 30%</span>
+          </div>
+
+          <!-- BGM 재생 / 일시정지 (하나의 버튼으로 통일) & 정지 버튼 -->
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px;">
+            <!-- 재생/일시정지 토글 버튼 (기본값 BGM OFF이므로 재생 버튼 표시) -->
+            <button id="btnToggleBgmPlayPause" class="btn btn-primary" style="flex: 1; min-width: 170px; padding: 10px 18px; font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;" onclick="toggleBgmPlayPause()">
+              ▶️ 배경음악 재생
+            </button>
+            <!-- 정지 버튼 -->
+            <button id="btnStopBgm" class="btn btn-secondary" style="padding: 10px 18px; font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onclick="stopBgm()">
+              ⏹️ BGM 정지
+            </button>
+          </div>
+
+          <!-- 슬라이더 & 빠른 볼륨 조절 프리셋 -->
+          <div style="background: rgba(0, 0, 0, 0.25); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.06); margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+              <span style="font-size: 0.9rem;">🔈</span>
+              <input type="range" id="bgmVolumeSlider" min="0" max="100" value="30" style="flex:1; cursor: pointer; accent-color: var(--accent-orange);" oninput="onBgmVolumeChange(this.value)">
+              <span style="font-size: 0.9rem;">🔊</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
+              <span style="font-size: 0.78rem; color: #94a3b8; margin-right: 4px;">빠른 조절:</span>
+              <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="setBgmVolumePreset(15)">15% (작게)</button>
+              <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem; border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245, 144, 30, 0.1);" onclick="setBgmVolumePreset(30)">30% (기본)</button>
+              <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="setBgmVolumePreset(50)">50% (보통)</button>
+              <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="setBgmVolumePreset(70)">70% (크게)</button>
+            </div>
+          </div>
+
+          <!-- YouTube 음원 링크 입력 & 저장 -->
+          <div>
+            <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; color: #cbd5e1; font-weight: 600;">YouTube 음원 링크 설정 (현장 스크린 무한 반복 재생)</label>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <input type="text" id="cfgYoutube" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=ujCh9JIxCeA" style="flex: 1; min-width: 240px;">
+              <button class="btn btn-orange" style="padding: 9px 16px; font-size: 0.88rem; white-space: nowrap;" onclick="saveBgmOnly()">💾 음원 저장하기</button>
+            </div>
+            <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 6px;">
+              기본 추천 음원: <a href="https://www.youtube.com/watch?v=ujCh9JIxCeA" target="_blank" style="color: var(--primary-sky); text-decoration: underline;">Lucky Draw Music (행사 추첨 긴장감 & 축하 BGM)</a>
+            </small>
+          </div>
         </div>
       </div>
 
@@ -1142,6 +1177,10 @@
         if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET' || msg.type === 'DRAW_CANCELLED' || msg.type === 'LOTTERY_SESSION_STATE' || msg.type === 'PRIZE_TARGET_CHANGED') {
           currentState = msg.data;
           renderAdminState(msg.data);
+        } else if (msg.type === 'BGM_CONTROL') {
+          if (msg.audio_state) {
+            updateAdminAudioUI(msg.audio_state);
+          }
         } else if (msg.type === 'DRAW_ROLLING_START') {
           handleDrawRollingStart(msg.data);
         } else if (msg.type === 'DRAW_ROLLING_COMPLETE') {
@@ -1156,6 +1195,11 @@
     function renderAdminState(state) {
       if (!state) return;
       const cfg = state.config;
+
+      // 오디오 상태 동기화
+      if (state.audio_state) {
+        updateAdminAudioUI(state.audio_state);
+      }
 
       // 0. DB 저장소 상태 배지 및 정보 카드 동기화
       const dbInfo = state.db_info || { type: 'SQLITE', name: '로컬 SQLite (lottery.db)', details: '', schema: 'dev' };
@@ -1725,6 +1769,16 @@
 
     // --- 추첨 세션(대기 vs 시작) 원격 제어 ---
     async function toggleLotterySession(started) {
+      if (started) {
+        // 대기화면 해제 시 BGM이 꺼져있다면 한 번 더 확인 창 띄워서 계속 진행 여부 물어보기
+        const isBgmOff = adminAudioState.bgm_paused || adminAudioState.master_muted;
+        if (isBgmOff) {
+          const ok = confirm("⚠️ 현재 배경음악(BGM)이 꺼져 있습니다.\n\n배경음악을 켜지 않고 대기화면을 해제하여 계속 진행하시겠습니까?");
+          if (!ok) {
+            return;
+          }
+        }
+      }
       try {
         const res = await adminFetch('/api/draw/session', {
           method: 'POST',
@@ -1788,53 +1842,156 @@
       }
     }
 
-    // --- 현장 BGM & 사운드 원격 제어 함수 ---
-    let isBgmMuted = false;
+    // --- 현장 사운드 & 배경음악(BGM) 원격 제어 함수 ---
+    let adminAudioState = {
+      master_muted: false,
+      bgm_paused: true, // 기본값 BGM OFF
+      sfx_muted: false,
+      volume: 30
+    };
 
-    async function controlBgm(action, volume = 30) {
+    function updateAdminAudioUI(audioState) {
+      if (!audioState) return;
+      adminAudioState = { ...adminAudioState, ...audioState };
+
+      const { master_muted, bgm_paused, sfx_muted, volume } = adminAudioState;
+
+      // 1. 전체 음소거 버튼 & 배지
+      const btnMaster = document.getElementById('btnToggleMasterMute');
+      const badgeMaster = document.getElementById('masterStatusBadge');
+      if (btnMaster) {
+        if (master_muted) {
+          btnMaster.innerHTML = '🔊 전체 음소거 해제';
+          btnMaster.style.background = 'rgba(239, 68, 68, 0.25)';
+          btnMaster.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+          btnMaster.style.color = '#f87171';
+        } else {
+          btnMaster.innerHTML = '🔇 전체 음소거';
+          btnMaster.style.background = '';
+          btnMaster.style.borderColor = '';
+          btnMaster.style.color = '';
+        }
+      }
+      if (badgeMaster) {
+        if (master_muted) {
+          badgeMaster.textContent = '🔇 전체 음소거 중';
+          badgeMaster.style.color = '#ef4444';
+          badgeMaster.style.background = 'rgba(239, 68, 68, 0.2)';
+        } else {
+          badgeMaster.textContent = '🟢 소리 ON';
+          badgeMaster.style.color = '#34d399';
+          badgeMaster.style.background = 'rgba(16, 185, 129, 0.2)';
+        }
+      }
+
+      // 2. 배경음악 재생/일시정지 통일 버튼 & 배지
+      const btnBgm = document.getElementById('btnToggleBgmPlayPause');
+      const badgeBgm = document.getElementById('bgmStatusBadge');
+      if (btnBgm) {
+        if (bgm_paused) {
+          btnBgm.innerHTML = '▶️ 배경음악 재생';
+          btnBgm.className = 'btn btn-primary';
+          btnBgm.style.background = '';
+          btnBgm.style.borderColor = '';
+          btnBgm.style.color = '';
+        } else {
+          btnBgm.innerHTML = '⏸️ 배경음악 일시정지';
+          btnBgm.className = 'btn btn-secondary';
+          btnBgm.style.background = 'rgba(2, 132, 199, 0.2)';
+          btnBgm.style.borderColor = 'rgba(56, 189, 248, 0.5)';
+          btnBgm.style.color = '#38bdf8';
+        }
+      }
+      if (badgeBgm) {
+        if (bgm_paused) {
+          badgeBgm.textContent = '⏸️ BGM 일시정지';
+          badgeBgm.style.color = '#f59e0b';
+          badgeBgm.style.background = 'rgba(245, 158, 11, 0.2)';
+        } else {
+          badgeBgm.textContent = '🎵 BGM 재생 중';
+          badgeBgm.style.color = '#38bdf8';
+          badgeBgm.style.background = 'rgba(2, 132, 199, 0.2)';
+        }
+      }
+
+      // 3. 현장 사운드 설정 버튼 & 배지
+      const btnSfx = document.getElementById('btnToggleSfxMute');
+      const badgeSfx = document.getElementById('sfxStatusBadge');
+      if (btnSfx) {
+        if (sfx_muted) {
+          btnSfx.innerHTML = '🔊 현장 사운드 켜기';
+          btnSfx.style.background = 'rgba(245, 158, 11, 0.25)';
+          btnSfx.style.borderColor = 'rgba(245, 158, 11, 0.6)';
+          btnSfx.style.color = '#fbbf24';
+        } else {
+          btnSfx.innerHTML = '🔕 현장 사운드 끄기';
+          btnSfx.style.background = '';
+          btnSfx.style.borderColor = '';
+          btnSfx.style.color = '';
+        }
+      }
+      if (badgeSfx) {
+        if (sfx_muted) {
+          badgeSfx.textContent = '🔕 현장효과음 OFF';
+          badgeSfx.style.color = '#94a3b8';
+          badgeSfx.style.background = 'rgba(148, 163, 184, 0.2)';
+        } else {
+          badgeSfx.textContent = '🔔 현장효과음 ON';
+          badgeSfx.style.color = '#c084fc';
+          badgeSfx.style.background = 'rgba(168, 85, 247, 0.2)';
+        }
+      }
+
+      // 4. 볼륨 슬라이더 및 라벨 동기화
+      if (typeof volume === 'number') {
+        const slider = document.getElementById('bgmVolumeSlider');
+        const label = document.getElementById('bgmVolLabel');
+        if (slider && document.activeElement !== slider) slider.value = volume;
+        if (label) label.textContent = `볼륨: ${volume}%`;
+      }
+    }
+
+    async function toggleMasterMute() {
+      const nextAction = adminAudioState.master_muted ? 'master_unmute' : 'master_mute';
+      await controlBgm(nextAction);
+    }
+
+    async function toggleBgmPlayPause() {
+      const nextAction = adminAudioState.bgm_paused ? 'bgm_play' : 'bgm_pause';
+      await controlBgm(nextAction);
+    }
+
+    async function stopBgm() {
+      await controlBgm('stop');
+    }
+
+    async function toggleSfxMute() {
+      const nextAction = adminAudioState.sfx_muted ? 'sfx_unmute' : 'sfx_mute';
+      await controlBgm(nextAction);
+    }
+
+    async function controlBgm(action, volume = null) {
       try {
+        const payload = { action: action };
+        if (volume !== null) payload.volume = parseInt(volume);
         const res = await adminFetch('/api/bgm/control', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: action,
-            volume: parseInt(volume)
-          })
+          body: JSON.stringify(payload)
         });
         if (res.ok) {
-          const badge = document.getElementById('bgmStatusBadge');
-          const muteBtn = document.getElementById('btnBgmToggleMute');
-          if (badge) {
-            if (action === 'play' || action === 'unmute') {
-              badge.textContent = '🟢 소리 ON (재생 중)';
-              badge.style.color = '#34d399';
-              badge.style.background = 'rgba(16, 185, 129, 0.2)';
-              isBgmMuted = false;
-              if (muteBtn) muteBtn.textContent = '🔇 음소거 (사운드 OFF)';
-            } else if (action === 'pause') {
-              badge.textContent = '⏸️ 일시 정지';
-              badge.style.color = '#f59e0b';
-              badge.style.background = 'rgba(245, 158, 11, 0.2)';
-            } else if (action === 'mute') {
-              badge.textContent = '🔇 음소거됨 (사운드 OFF)';
-              badge.style.color = '#ef4444';
-              badge.style.background = 'rgba(239, 68, 68, 0.2)';
-              isBgmMuted = true;
-              if (muteBtn) muteBtn.textContent = '🔊 소리 켜기 (사운드 ON)';
-            }
+          const data = await res.json();
+          if (data && data.audio_state) {
+            updateAdminAudioUI(data.audio_state);
           }
         }
       } catch (err) {
-        console.error('BGM 원격 제어 요청 오류:', err);
+        console.error('사운드 원격 제어 요청 오류:', err);
       }
     }
 
     function toggleBgmMute() {
-      if (isBgmMuted) {
-        controlBgm('unmute', 30);
-      } else {
-        controlBgm('mute', 0);
-      }
+      toggleMasterMute();
     }
 
     let volDebounce = null;

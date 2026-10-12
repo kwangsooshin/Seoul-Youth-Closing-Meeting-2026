@@ -113,12 +113,37 @@ async def control_bgm(req: BgmControlRequest, request: Request):
         raise HTTPException(status_code=401, detail="인증 실패 (세션 토큰 또는 비밀번호가 필요합니다)")
 
 
+    # 오디오 제어 액션별 상태 반영
+    if req.action in ("master_mute", "mute"):
+        state.audio_state["master_muted"] = True
+    elif req.action in ("master_unmute", "unmute"):
+        state.audio_state["master_muted"] = False
+    elif req.action in ("bgm_play", "play"):
+        state.audio_state["bgm_paused"] = False
+    elif req.action in ("bgm_pause", "pause", "bgm_stop", "stop"):
+        state.audio_state["bgm_paused"] = True
+    elif req.action == "sfx_mute":
+        state.audio_state["sfx_muted"] = True
+    elif req.action == "sfx_unmute":
+        state.audio_state["sfx_muted"] = False
+    elif req.action == "set_volume":
+        if req.volume is not None:
+            state.audio_state["volume"] = max(0, min(100, int(req.volume)))
+
+    current_volume = req.volume if req.volume is not None else state.audio_state.get("volume", 30)
+
     await manager.broadcast({
         "type": "BGM_CONTROL",
         "action": req.action,
-        "volume": req.volume
+        "volume": current_volume,
+        "audio_state": state.audio_state
     })
-    return {"success": True, "action": req.action, "volume": req.volume}
+    return {
+        "success": True,
+        "action": req.action,
+        "volume": current_volume,
+        "audio_state": state.audio_state
+    }
 
 
 @router.get("/admin/audit-logs")

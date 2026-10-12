@@ -12,6 +12,12 @@ class LotteryState:
         self.pending_draw: Optional[Dict[str, Any]] = None
         self.is_started: bool = False  # 현장 추첨 대기화면 해제 여부
         self.selected_prize_id: Optional[int] = None  # 관리자가 현재 선택한 추첨 등수 ID
+        self.audio_state: Dict[str, Any] = {
+            "master_muted": False,
+            "bgm_paused": True,  # 기본값 BGM OFF
+            "sfx_muted": False,
+            "volume": 30
+        }
 
     def sync_from_db(self):
         """DB에서 앱 설정, 등수 목록 및 추첨 이력 동기화"""
@@ -84,7 +90,8 @@ class LotteryState:
             "current_pending_draw": self.pending_draw,
             "is_lottery_started": self.is_started,
             "selected_prize_id": self.selected_prize_id,
-            "db_info": get_db_info(len(self.history))
+            "db_info": get_db_info(len(self.history)),
+            "audio_state": self.audio_state
         }
 
 
