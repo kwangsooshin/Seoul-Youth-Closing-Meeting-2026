@@ -1,6 +1,7 @@
 import os
 from typing import List, Dict, Any, Optional
 
+from core.config import DEFAULT_CONFIG
 from . import sqlite_db
 from . import supabase_db
 
@@ -45,11 +46,7 @@ def init_db(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[
 def load_app_config(fallback_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Supabase 우선, 실패 시 SQLite에서 앱 설정 로드 (기본값 병합)"""
     global use_supabase
-    default_cfg = fallback_config or {
-        "min_number": 1,
-        "max_number": 200,
-        "bgm_youtube_url": "https://www.youtube.com/watch?v=ujCh9JIxCeA"
-    }
+    default_cfg = fallback_config or dict(DEFAULT_CONFIG)
 
     if use_supabase and supabase_client:
         try:
