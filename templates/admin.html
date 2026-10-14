@@ -171,6 +171,39 @@
       transform: translateY(0);
     }
 
+    /* BGM 빠른 볼륨 프리셋 마이크로 칩 버튼 */
+    .vol-preset-btn {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      line-height: normal;
+      user-select: none;
+    }
+
+    .vol-preset-btn:hover {
+      background: rgba(51, 65, 85, 0.85);
+      border-color: rgba(255, 255, 255, 0.22);
+      color: #f8fafc;
+      transform: translateY(-1px);
+    }
+
+    .vol-preset-btn.active-preset {
+      background: rgba(245, 144, 30, 0.15) !important;
+      border-color: rgba(245, 144, 30, 0.5) !important;
+      color: #fb923c !important;
+      font-weight: 700 !important;
+      box-shadow: 0 0 8px rgba(245, 144, 30, 0.25) !important;
+    }
 
     /* 탭 메뉴 */
     .tabs-nav {
@@ -783,12 +816,13 @@
               <input type="range" id="bgmVolumeSlider" min="0" max="100" value="30" style="flex:1; cursor: pointer; accent-color: var(--accent-orange);" oninput="onBgmVolumeChange(this.value)">
               <span style="font-size: 0.95rem;">🔊</span>
             </div>
-                        <div style="display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
-              <span style="font-size: 0.78rem; color: #94a3b8; margin-right: 4px;">빠른 조절:</span>
-              <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="setBgmVolumePreset(15)">15% (작게)</button>
-              <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem; border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245, 144, 30, 0.1);" onclick="setBgmVolumePreset(30)">30% (기본)</button>
-              <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="setBgmVolumePreset(50)">50% (보통)</button>
-              <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="setBgmVolumePreset(70)">70% (크게)</button>
+            <!-- 가운데 정렬 및 아담하고 세련된 빠른 음량 조절 프리셋 칩 그룹 -->
+            <div style="display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap;">
+              <span style="font-size: 0.76rem; color: #94a3b8; font-weight: 600; margin-right: 2px;">빠른 조절:</span>
+              <button type="button" class="vol-preset-btn" data-vol="15" onclick="setBgmVolumePreset(15)">15% (작게)</button>
+              <button type="button" class="vol-preset-btn" data-vol="30" onclick="setBgmVolumePreset(30)">30% (기본)</button>
+              <button type="button" class="vol-preset-btn" data-vol="50" onclick="setBgmVolumePreset(50)">50% (보통)</button>
+              <button type="button" class="vol-preset-btn" data-vol="70" onclick="setBgmVolumePreset(70)">70% (크게)</button>
             </div>
           </div>
 
@@ -1985,10 +2019,23 @@
         const label = document.getElementById('bgmVolLabel');
         if (slider && document.activeElement !== slider) slider.value = volume;
         if (label) label.textContent = `볼륨: ${volume}%`;
-              }
+        updateVolPresetButtons(volume);
+      }
     }
 
-    
+    function updateVolPresetButtons(currentVol) {
+      const volNum = Number(currentVol);
+      document.querySelectorAll('.vol-preset-btn').forEach(btn => {
+        const btnVol = Number(btn.getAttribute('data-vol'));
+        if (btnVol === volNum) {
+          btn.classList.add('active-preset');
+        } else {
+          btn.classList.remove('active-preset');
+        }
+      });
+    }
+    updateVolPresetButtons(30);
+
     async function toggleMasterMute() {
       const nextAction = adminAudioState.master_muted ? 'master_unmute' : 'master_mute';
       await controlBgm(nextAction);
@@ -2035,7 +2082,8 @@
     let volDebounce = null;
     function onBgmVolumeChange(val) {
       document.getElementById('bgmVolLabel').textContent = `볼륨: ${val}%`;
-            clearTimeout(volDebounce);
+      updateVolPresetButtons(val);
+      clearTimeout(volDebounce);
       volDebounce = setTimeout(() => {
         controlBgm('set_volume', val);
       }, 80);
@@ -2046,7 +2094,8 @@
       if (slider) slider.value = val;
       const label = document.getElementById('bgmVolLabel');
       if (label) label.textContent = `볼륨: ${val}%`;
-            controlBgm('set_volume', val);
+      updateVolPresetButtons(val);
+      controlBgm('set_volume', val);
     }
 
     async function saveBgmOnly() {
