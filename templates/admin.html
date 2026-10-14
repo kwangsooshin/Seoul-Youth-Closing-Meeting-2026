@@ -723,7 +723,7 @@
           <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="color: var(--primary-sky);">📺 송출 스크린 대기화면 제어</span>
             <span id="sessionStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(245, 144, 30, 0.2); color: #f5901e; font-weight: 700;">대기화면 표시 중</span>
-            <span id="sessionTimerBadge" style="display: none; font-size: 0.75rem; padding: 2px 9px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-weight: 700;">⏱️ 자동 복귀까지: 03:00:00</span>
+            <span id="sessionTimerBadge" style="display: none; font-size: 0.75rem; padding: 2px 9px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-weight: 700;">⏱️ 대기화면 유지 시간: 03:00:00</span>
           </span>
         </div>
         <p id="sessionStatusDesc" style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 14px; line-height: 1.5;">
@@ -1878,7 +1878,7 @@
         const mins = Math.floor((remaining % (3600 * 1000)) / (60 * 1000));
         const secs = Math.floor((remaining % (60 * 1000)) / 1000);
         const pad = (n) => String(n).padStart(2, '0');
-        timerBadge.textContent = `⏱️ 무조작 자동 복귀까지: ${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+        timerBadge.textContent = `⏱️ 대기화면 유지 시간: ${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
         timerBadge.style.display = 'inline-block';
       }
 
