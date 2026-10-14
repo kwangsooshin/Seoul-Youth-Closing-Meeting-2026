@@ -134,12 +134,10 @@ async def update_config(req: ConfigUpdateRequest, request: Request):
 
     if req.min_number < 1:
         raise HTTPException(status_code=400, detail="최소 번호는 1 이상이어야 합니다.")
-    if req.max_number > 50000:
-        raise HTTPException(status_code=400, detail="최대 번호는 50,000 이하이어야 합니다.")
+    if req.max_number > 1000:
+        raise HTTPException(status_code=400, detail="최대 번호는 1,000 이하이어야 합니다.")
     if req.min_number >= req.max_number:
         raise HTTPException(status_code=400, detail="최소 번호는 최대 번호보다 작아야 합니다.")
-    if (req.max_number - req.min_number + 1) > 50000:
-        raise HTTPException(status_code=400, detail="추첨 대상 번호 개수는 최대 50,000개까지 설정 가능합니다.")
 
     # 등수(prizes) 변경 -> DB 반영
     if req.prizes is not None:

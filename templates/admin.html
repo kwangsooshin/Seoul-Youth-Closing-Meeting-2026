@@ -948,7 +948,7 @@
           </div>
           <div>
             <label>최대 번호 (끝)</label>
-            <input type="number" id="cfgMax" min="1" value="200">
+            <input type="number" id="cfgMax" min="1" max="1000" value="200">
           </div>
         </div>
         <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 8px;">
@@ -1752,8 +1752,8 @@
       const minNum = parseInt(document.getElementById('cfgMin').value);
       const maxNum = parseInt(document.getElementById('cfgMax').value);
 
-      if (isNaN(minNum) || isNaN(maxNum) || minNum >= maxNum) {
-        alert('최소 번호와 최대 번호를 올바르게 입력해주세요.');
+      if (isNaN(minNum) || isNaN(maxNum) || minNum < 1 || maxNum > 1000 || minNum >= maxNum) {
+        alert('최소 번호(1 이상)와 최대 번호(1,000 이하)를 올바르게 입력해주세요.');
         return;
       }
 
