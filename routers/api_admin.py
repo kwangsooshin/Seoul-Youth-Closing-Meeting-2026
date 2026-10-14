@@ -2,13 +2,19 @@ import hmac
 import time
 from collections import defaultdict
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from core.config import ADMIN_PASSWORD, DEFAULT_BGM_URL
 from core.state import state
 from core.websocket import manager
-from core.auth import create_admin_token, is_authenticated_admin, revoke_admin_token
+from core.auth import (
+    create_admin_token,
+    is_authenticated_admin,
+    revoke_admin_token,
+    get_admin_token_from_request,
+    SESSION_TTL_SECONDS,
+)
 from db import save_prizes, load_prizes, load_history, save_app_config, load_access_logs, cleanup_old_access_logs, clear_all_access_logs
 
 router = APIRouter(prefix="/api", tags=["Admin"])
@@ -46,7 +52,7 @@ class VerifyPasswordRequest(BaseModel):
 
 
 @router.post("/admin/verify")
-async def verify_admin(req: VerifyPasswordRequest, request: Request):
+async def verify_admin(req: VerifyPasswordRequest, request: Request, response: Response):
     client_ip = _get_client_ip(request)
     _check_login_rate_limit(client_ip)
 
@@ -54,6 +60,15 @@ async def verify_admin(req: VerifyPasswordRequest, request: Request):
     if hmac.compare_digest(req.password, ADMIN_PASSWORD):
         _failed_login_attempts.pop(client_ip, None)
         token = create_admin_token()
+        # 브라우저 페이지 이동(/admin 등) 시 서버 인증 체크를 위한 보안 쿠키 발급
+        response.set_cookie(
+            key="admin_token",
+            value=token,
+            max_age=SESSION_TTL_SECONDS,
+            httponly=True,
+            samesite="lax",
+            path="/"
+        )
         return {"success": True, "token": token}
 
     _failed_login_attempts[client_ip].append(time.time())
@@ -61,17 +76,12 @@ async def verify_admin(req: VerifyPasswordRequest, request: Request):
 
 
 @router.post("/admin/logout")
-async def logout_admin(request: Request):
+async def logout_admin(request: Request, response: Response):
     """세션 토큰 폐기 (로그아웃)"""
-    auth_header = request.headers.get("authorization", "")
-    token = None
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:].strip()
-    else:
-        token = request.headers.get("x-admin-token", "").strip()
-
+    token = get_admin_token_from_request(request)
     if token:
         revoke_admin_token(token)
+    response.delete_cookie(key="admin_token", path="/")
     return {"success": True, "message": "성공적으로 로그아웃되었습니다."}
 
 

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>관리자 인증 | 2026 서울청년정책네트워크 총회 현장 추첨</title>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="shortcut icon" href="/logo.png">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-color: #0b1120;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-sky: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.25);
+
+      --accent-orange: #f5901e;
+      --accent-orange-hover: #ea580c;
+      --accent-orange-glow: rgba(245, 144, 30, 0.35);
+
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.12);
+      --danger-border: rgba(239, 68, 68, 0.3);
+
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-sub: #cbd5e1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      position: relative;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 20% 15%, rgba(2, 132, 199, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 80% 85%, rgba(245, 144, 30, 0.12) 0%, transparent 45%);
+    }
+
+    /* 배경 장식 원형 블러 */
+    .bg-glow-1 {
+      position: absolute;
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(2, 132, 199, 0.18) 0%, rgba(2, 132, 199, 0) 70%);
+      top: -120px;
+      left: 10%;
+      pointer-events: none;
+      filter: blur(40px);
+    }
+
+    .bg-glow-2 {
+      position: absolute;
+      width: 440px;
+      height: 440px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(245, 144, 30, 0.16) 0%, rgba(245, 144, 30, 0) 70%);
+      bottom: -100px;
+      right: 10%;
+      pointer-events: none;
+      filter: blur(40px);
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 440px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .login-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 38px 32px 32px;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 30px -5px rgba(2, 132, 199, 0.12);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .login-logo-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .login-logo-wrap img {
+      height: 42px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .badge-admin {
+      display: inline-block;
+      background: rgba(2, 132, 199, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: var(--primary-sky);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .login-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+
+    .brand-net .c-teal { color: #38bdf8; }
+    .brand-net .c-orange { color: #f5901e; }
+
+    .login-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .auth-input {
+      width: 100%;
+      padding: 14px 44px 14px 16px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s ease;
+      letter-spacing: 1px;
+    }
+
+    .auth-input:focus {
+      border-color: var(--primary-sky);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .auth-input::placeholder {
+      color: #64748b;
+      letter-spacing: normal;
+    }
+
+    .btn-toggle-pwd {
+      position: absolute;
+      right: 12px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.15rem;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s ease;
+    }
+
+    .btn-toggle-pwd:hover {
+      color: var(--text-main);
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent-orange) 0%, #ea580c 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 16px var(--accent-orange-glow);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 144, 30, 0.5);
+      background: linear-gradient(135deg, #fb923c 0%, #ea580c 100%);
+    }
+
+    .btn-submit:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .error-alert {
+      display: none;
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: #fca5a5;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      margin-top: 16px;
+      line-height: 1.45;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #ffffff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .login-footer-links {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .display-link {
+      color: var(--accent-orange);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      background: rgba(245, 144, 30, 0.1);
+      border: 1px solid rgba(245, 144, 30, 0.35);
+      border-radius: 10px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+
+    .display-link:hover {
+      background: rgba(245, 144, 30, 0.2);
+      border-color: var(--accent-orange);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(245, 144, 30, 0.25);
+    }
+
+    .page-footer {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 0.78rem;
+      color: #64748b;
+      z-index: 10;
+    }
+
+    .page-footer a {
+      color: #64748b;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .page-footer a:hover {
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo-wrap">
+          <img src="/logo.png" alt="서울청년정책네트워크 로고" onerror="this.style.display='none'">
+        </div>
+        <div>
+          <span class="badge-admin">Admin Authentication</span>
+        </div>
+        <h1 class="login-title">
+          <span class="brand-net"><span class="c-teal">서울</span><span class="c-orange">청</span><span class="c-teal">년</span><span class="c-orange">정</span><span class="c-teal">책</span><span class="c-orange">네</span><span class="c-teal">트워크</span></span><br>
+          <span style="font-size: 1.15rem; font-weight: 700; color: #f1f5f9;">총회 현장 추첨 관리자 인증</span>
+        </h1>
+        <p class="login-desc">시스템 조작 및 설정을 위해 행사 관리자 비밀번호를 입력해주세요.</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label" for="authPassword">관리자 비밀번호</label>
+          <div class="input-wrapper">
+            <input 
+              type="password" 
+              id="authPassword" 
+              class="auth-input" 
+              placeholder="비밀번호를 입력하세요" 
+              required 
+              autocomplete="current-password"
+              autofocus
+            >
+            <button 
+              type="button" 
+              class="btn-toggle-pwd" 
+              id="togglePwdBtn" 
+              title="비밀번호 표시/숨김"
+              onclick="togglePasswordVisibility()"
+            >
+              👁️
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submitBtn">
+          <span id="btnText">관리자 콘솔 접속</span>
+          <span id="btnSpinner" class="spinner" style="display: none;"></span>
+        </button>
+
+        <div class="error-alert" id="errorAlert">
+          <!-- 오류 메시지가 동적으로 표시됨 -->
+        </div>
+
+        <div class="login-footer-links">
+          <a href="/display" target="_blank" class="display-link" title="현장 스크린 화면을 새 탭에서 엽니다">
+            📺 현장 스크린 열기 ↗
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <footer class="page-footer">
+      <p>
+        © 2026 kwangsoo · 
+        <a href="https://github.com/kwangsooshin/Seoul-Youth-Closing-Meeting-2026" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    function togglePasswordVisibility() {
+      const input = document.getElementById('authPassword');
+      const btn = document.getElementById('togglePwdBtn');
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+      }
+    }
+
+    async function handleLogin(e) {
+      if (e) e.preventDefault();
+      const pwdInput = document.getElementById('authPassword');
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const btnSpinner = document.getElementById('btnSpinner');
+      const errorAlert = document.getElementById('errorAlert');
+
+      const password = pwdInput.value.trim();
+      if (!password) {
+        showError('비밀번호를 입력해주세요.');
+        pwdInput.focus();
+        return;
+      }
+
+      // 로딩 UI 상태
+      submitBtn.disabled = true;
+      btnText.textContent = '인증 확인 중...';
+      btnSpinner.style.display = 'inline-block';
+      errorAlert.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password: password })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data.success) {
+          // 세션스토리지에도 보관 (API 직접 호출 시 호환성 유지)
+          sessionStorage.setItem('admin_pwd', password);
+          if (data.token) {
+            sessionStorage.setItem('admin_token', data.token);
+          }
+          btnText.textContent = '인증 성공! 이동 중...';
+          btnSpinner.style.display = 'inline-block';
+          // 서버 쿠키가 설정되었으므로 /admin 진입 허용
+          setTimeout(() => {
+            window.location.href = '/admin';
+          }, 200);
+        } else {
+          const msg = data.detail || '비밀번호가 올바르지 않습니다.';
+          showError(msg);
+          submitBtn.disabled = false;
+          btnText.textContent = '관리자 콘솔 접속';
+          btnSpinner.style.display = 'none';
+          pwdInput.select();
+        }
+      } catch (err) {
+        showError('서버와의 통신에 실패했습니다. 네트워크를 확인해주세요.');
+        submitBtn.disabled = false;
+        btnText.textContent = '관리자 콘솔 접속';
+        btnSpinner.style.display = 'none';
+      }
+    }
+
+    function showError(msg) {
+      const errorAlert = document.getElementById('errorAlert');
+      errorAlert.textContent = msg;
+      errorAlert.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

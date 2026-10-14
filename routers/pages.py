@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from core.config import BASE_DIR
+from core.auth import verify_admin_token, revoke_admin_token
 from db import save_access_log
 
 router = APIRouter(tags=["Pages"])
@@ -55,11 +56,35 @@ async def display_alias(request: Request, background_tasks: BackgroundTasks):
     return templates.TemplateResponse(request=request, name="display.html")
 
 
+@router.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(request: Request, background_tasks: BackgroundTasks):
+    """관리자 로그인 및 인증 화면"""
+    cookie_token = request.cookies.get("admin_token")
+    if cookie_token and verify_admin_token(cookie_token):
+        return RedirectResponse(url="/admin", status_code=303)
+    background_tasks.add_task(record_audit, request, "admin_login")
+    return templates.TemplateResponse(request=request, name="admin_login.html")
+
+
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, background_tasks: BackgroundTasks):
-    """관리자용 진행 및 설정 화면"""
+    """관리자용 진행 및 설정 화면 (인증된 관리자만 접근 가능)"""
+    cookie_token = request.cookies.get("admin_token")
+    if not cookie_token or not verify_admin_token(cookie_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
     background_tasks.add_task(record_audit, request, "admin")
     return templates.TemplateResponse(request=request, name="admin.html")
+
+
+@router.get("/admin/logout")
+async def admin_logout_page(request: Request):
+    """관리자 로그아웃 처리 후 로그인 페이지로 이동"""
+    cookie_token = request.cookies.get("admin_token")
+    if cookie_token:
+        revoke_admin_token(cookie_token)
+    response = RedirectResponse(url="/admin/login", status_code=303)
+    response.delete_cookie(key="admin_token", path="/")
+    return response
 
 
 @router.api_route("/healthz", methods=["GET", "HEAD"])

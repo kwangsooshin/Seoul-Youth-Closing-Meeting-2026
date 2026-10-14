@@ -33,25 +33,34 @@ def verify_admin_token(token: Optional[str]) -> bool:
     return False
 
 
+def get_admin_token_from_request(request: Request) -> Optional[str]:
+    """요청에서 관리자 토큰(Authorization 헤더, X-Admin-Token 헤더, admin_token 쿠키) 추출"""
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        if token:
+            return token
+
+    custom_token = request.headers.get("x-admin-token", "").strip()
+    if custom_token:
+        return custom_token
+
+    cookie_token = request.cookies.get("admin_token", "").strip()
+    if cookie_token:
+        return cookie_token
+
+    return None
+
+
 def is_authenticated_admin(request: Request) -> bool:
     """
     관리자 세션 토큰 인증 검증:
     1. Authorization: Bearer <token> 헤더
     2. X-Admin-Token: <token> 헤더
+    3. admin_token 쿠키
     """
-    # 1. Bearer Token
-    auth_header = request.headers.get("authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:].strip()
-        if verify_admin_token(token):
-            return True
-
-    # 2. X-Admin-Token
-    custom_token = request.headers.get("x-admin-token", "").strip()
-    if verify_admin_token(custom_token):
-        return True
-
-    return False
+    token = get_admin_token_from_request(request)
+    return verify_admin_token(token)
 
 
 def revoke_admin_token(token: Optional[str]):

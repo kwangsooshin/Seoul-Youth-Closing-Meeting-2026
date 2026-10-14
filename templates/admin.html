@@ -141,6 +141,37 @@
       transform: translateY(-1px);
     }
 
+    .logout-btn {
+      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      line-height: normal;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+
+    .logout-btn:active {
+      transform: translateY(0);
+    }
+
+
     /* 탭 메뉴 */
     .tabs-nav {
       display: flex;
@@ -618,17 +649,6 @@
 </head>
 <body>
 
-  <!-- 비밀번호 인증 모달 -->
-  <div class="modal-overlay" id="authModal">
-    <div class="modal-box">
-      <h2 style="margin-bottom: 8px;">🔐 관리자 인증</h2>
-      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">행사 관리자 비밀번호를 입력해주세요.</p>
-      <input type="password" id="authInput" placeholder="관리자 비밀번호" style="margin-bottom: 16px; text-align: center;" onkeydown="if(event.key==='Enter') verifyPassword()">
-      <button class="btn btn-orange" style="width: 100%;" onclick="verifyPassword()">접속하기</button>
-      <div id="authErrorMsg" style="color: var(--danger); font-size: 0.85rem; margin-top: 12px; display: none;">비밀번호가 올바르지 않습니다.</div>
-    </div>
-  </div>
-
   <!-- 헤더 -->
   <header>
     <div class="brand">
@@ -645,6 +665,9 @@
       <a href="/display" target="_blank" class="display-link">
         📺 현장 스크린 열기 ↗
       </a>
+      <button type="button" class="logout-btn" onclick="handleLogout()" title="관리자 세션 로그아웃">
+        🚪 로그아웃
+      </button>
     </div>
   </header>
 
@@ -664,7 +687,7 @@
       <!-- 📺 송출 스크린 대기화면 제어 카드 -->
       <div id="lotterySessionCard" class="card" style="border-color: rgba(2, 132, 199, 0.45); background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(2, 132, 199, 0.15)); margin-bottom: 20px;">
         <div class="card-title" style="margin-bottom: 8px;">
-          <span style="display:flex; align-items:center; gap:8px;">
+          <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="color: var(--primary-sky);">📺 송출 스크린 대기화면 제어</span>
             <span id="sessionStatusBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: rgba(245, 144, 30, 0.2); color: #f5901e; font-weight: 700;">대기화면 표시 중</span>
           </span>
@@ -753,13 +776,13 @@
           </div>
 
           <!-- 슬라이더 & 빠른 볼륨 조절 프리셋 -->
-          <div style="background: rgba(0, 0, 0, 0.25); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.06); margin-bottom: 14px;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-              <span style="font-size: 0.9rem;">🔈</span>
+          <div style="background: rgba(0, 0, 0, 0.25); padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.06); margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+              <span style="font-size: 0.95rem;">🔈</span>
               <input type="range" id="bgmVolumeSlider" min="0" max="100" value="30" style="flex:1; cursor: pointer; accent-color: var(--accent-orange);" oninput="onBgmVolumeChange(this.value)">
-              <span style="font-size: 0.9rem;">🔊</span>
+              <span style="font-size: 0.95rem;">🔊</span>
             </div>
-            <div style="display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
               <span style="font-size: 0.78rem; color: #94a3b8; margin-right: 4px;">빠른 조절:</span>
               <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="setBgmVolumePreset(15)">15% (작게)</button>
               <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem; border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245, 144, 30, 0.1);" onclick="setBgmVolumePreset(30)">30% (기본)</button>
@@ -1068,89 +1091,36 @@
   </footer>
 
   <script>
-    let adminPassword = sessionStorage.getItem('admin_pwd') || '';
     let adminToken = sessionStorage.getItem('admin_token') || '';
     let currentState = null;
 
-    // --- 비밀번호 인증 및 세션 토큰 획득 ---
-    async function verifyPassword() {
-      const input = document.getElementById('authInput').value;
-      const errorMsg = document.getElementById('authErrorMsg');
+    // --- 관리자 세션 로그아웃 ---
+    async function handleLogout() {
+      if (!confirm('관리자 세션을 종료하고 로그아웃하시겠습니까?')) return;
       try {
-        const res = await fetch('/api/admin/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: input })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          adminPassword = input;
-          adminToken = data.token || '';
-          sessionStorage.setItem('admin_pwd', adminPassword);
-          if (adminToken) sessionStorage.setItem('admin_token', adminToken);
-          document.getElementById('authModal').style.display = 'none';
-          initWebSocket();
-        } else {
-          errorMsg.style.display = 'block';
-        }
-      } catch (err) {
-        alert('서버 연결 실패');
-      }
-    }
-
-    if (adminPassword) {
-      // 이미 비밀번호가 있으면 자동 검증 및 토큰 갱신
-      fetch('/api/admin/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: adminPassword })
-      }).then(res => {
-        if (res.ok) {
-          res.json().then(data => {
-            if (data.token) {
-              adminToken = data.token;
-              sessionStorage.setItem('admin_token', adminToken);
-            }
-          });
-          document.getElementById('authModal').style.display = 'none';
-          initWebSocket();
-        } else {
-          sessionStorage.removeItem('admin_pwd');
-          sessionStorage.removeItem('admin_token');
-        }
-      });
+        await fetch('/api/admin/logout', { method: 'POST' });
+      } catch (e) {}
+      sessionStorage.removeItem('admin_token');
+      sessionStorage.removeItem('admin_pwd');
+      document.cookie = 'admin_token=; path=/; max-age=0';
+      window.location.href = '/admin/login';
     }
 
     // --- 관리자 API 공통 요청 헬퍼 (Authorization: Bearer 세션 토큰 자동 첨부) ---
     async function adminFetch(url, options = {}) {
       options.headers = options.headers || {};
-      if (!adminToken && adminPassword) {
-        try {
-          const vRes = await fetch('/api/admin/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: adminPassword })
-          });
-          if (vRes.ok) {
-            const vData = await vRes.json();
-            if (vData.token) {
-              adminToken = vData.token;
-              sessionStorage.setItem('admin_token', adminToken);
-            }
-          }
-        } catch (e) {}
-      }
       if (adminToken) {
         options.headers['Authorization'] = `Bearer ${adminToken}`;
       }
       try {
         const res = await fetch(url, options);
         if (res.status === 401) {
-          // 세션 토큰 만료 시 로그인 모달 표시
+          // 세션 토큰 만료 시 로그인 페이지로 즉시 이동
           sessionStorage.removeItem('admin_token');
-          adminToken = '';
-          const modal = document.getElementById('authModal');
-          if (modal) modal.style.display = 'flex';
+          sessionStorage.removeItem('admin_pwd');
+          alert('관리자 인증 세션이 만료되었습니다. 다시 로그인해주세요.');
+          window.location.href = '/admin/login';
+          return res;
         }
         return res;
       } catch (err) {
@@ -1205,6 +1175,9 @@
 
       ws.onclose = () => setTimeout(initWebSocket, 2000);
     }
+
+    // 관리자 페이지 로드 시 웹소켓 연결 즉시 시작
+    initWebSocket();
 
     // --- 상태 렌더링 ---
     function renderAdminState(state) {
@@ -1806,6 +1779,7 @@
           const data = await res.json();
           if (currentState) {
             currentState.is_lottery_started = data.started;
+            currentState.session_started_at = data.session_started_at;
           }
           updateSessionUI(data.started);
           resetDrawControlsToIdle();
@@ -1957,15 +1931,16 @@
         }
       }
 
-      // 4. 볼륨 슬라이더 및 라벨 동기화
+      // 4. 볼륨 슬라이더, 라벨 및 프리셋 버튼 동기화
       if (typeof volume === 'number') {
         const slider = document.getElementById('bgmVolumeSlider');
         const label = document.getElementById('bgmVolLabel');
         if (slider && document.activeElement !== slider) slider.value = volume;
         if (label) label.textContent = `볼륨: ${volume}%`;
-      }
+              }
     }
 
+    
     async function toggleMasterMute() {
       const nextAction = adminAudioState.master_muted ? 'master_unmute' : 'master_mute';
       await controlBgm(nextAction);
@@ -2012,7 +1987,7 @@
     let volDebounce = null;
     function onBgmVolumeChange(val) {
       document.getElementById('bgmVolLabel').textContent = `볼륨: ${val}%`;
-      clearTimeout(volDebounce);
+            clearTimeout(volDebounce);
       volDebounce = setTimeout(() => {
         controlBgm('set_volume', val);
       }, 80);
@@ -2023,7 +1998,7 @@
       if (slider) slider.value = val;
       const label = document.getElementById('bgmVolLabel');
       if (label) label.textContent = `볼륨: ${val}%`;
-      controlBgm('set_volume', val);
+            controlBgm('set_volume', val);
     }
 
     async function saveBgmOnly() {
@@ -2113,7 +2088,7 @@
     function updateAuditCounts() {
       const cntAll = allAuditLogs.length;
       const cntDisplay = allAuditLogs.filter(l => l.page_type === 'display').length;
-      const cntAdmin = allAuditLogs.filter(l => l.page_type === 'admin').length;
+      const cntAdmin = allAuditLogs.filter(l => l.page_type === 'admin' || l.page_type === 'admin_login').length;
       const cntHealth = allAuditLogs.filter(l => l.page_type === 'healthcheck').length;
 
       const elAll = document.getElementById('countAuditAll');
@@ -2135,7 +2110,12 @@
 
       const filtered = currentAuditFilter === 'all'
         ? allAuditLogs
-        : allAuditLogs.filter(l => l.page_type === currentAuditFilter);
+        : allAuditLogs.filter(l => {
+            if (currentAuditFilter === 'admin') {
+              return l.page_type === 'admin' || l.page_type === 'admin_login';
+            }
+            return l.page_type === currentAuditFilter;
+          });
 
       const totalItems = filtered.length;
       const totalPages = Math.max(1, Math.ceil(totalItems / auditPageSize));
@@ -2155,11 +2135,17 @@
       }
 
       if (totalItems === 0) {
+        const filterNames = {
+          all: '전체',
+          display: '📺 display (현장 스크린)',
+          admin: '🔐 admin (관리자 콘솔/인증)',
+          healthcheck: '🤖 healthcheck (상태 감시)'
+        };
         tbody.innerHTML = `
           <tr>
             <td colspan="6" style="padding: 32px 16px; text-align: center; color: var(--text-muted);">
               <div style="font-size: 1.4rem; margin-bottom: 6px;">🔍</div>
-              선택한 <strong>[${escapeHtml(currentAuditFilter)}]</strong> 구분의 접속 로그가 없습니다. (다른 필터를 선택해 보세요)
+              선택한 <strong>[${escapeHtml(filterNames[currentAuditFilter] || currentAuditFilter)}]</strong> 구분의 접속 로그가 없습니다. (다른 필터를 선택해 보세요)
             </td>
           </tr>
         `;
@@ -2179,6 +2165,8 @@
           typeBadge = `<span style="display:inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">📺 display</span>`;
         } else if (log.page_type === 'admin') {
           typeBadge = `<span style="display:inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(245, 144, 30, 0.15); color: #f5901e; border: 1px solid rgba(245, 144, 30, 0.35);">🔐 admin</span>`;
+        } else if (log.page_type === 'admin_login') {
+          typeBadge = `<span style="display:inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(245, 144, 30, 0.25); color: #fb923c; border: 1px dashed rgba(245, 144, 30, 0.5);">🔑 login</span>`;
         } else if (log.page_type === 'healthcheck') {
           typeBadge = `<span style="display:inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">🤖 healthcheck</span>`;
         } else {

@@ -95,7 +95,8 @@ uv run uvicorn main:app --reload --port 8000
 
 ### 3) 접속 URL
 - **현장 스크린 송출 화면**: [http://localhost:8000/display](http://localhost:8000/display) (또는 `/`)
-- **관리자 진행 콘솔**: [http://localhost:8000/admin](http://localhost:8000/admin) (비밀번호: `admin1234`)
+- **관리자 인증(로그인)**: [http://localhost:8000/admin/login](http://localhost:8000/admin/login) (비밀번호: `admin1234`)
+- **관리자 진행 콘솔**: [http://localhost:8000/admin](http://localhost:8000/admin) *(미인증 시 `/admin/login`으로 자동 리다이렉트되어 내부 화면 및 소스가 보호됩니다)*
 
 ---
 
