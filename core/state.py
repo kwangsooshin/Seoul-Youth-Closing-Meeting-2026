@@ -1,6 +1,10 @@
+import time
 from typing import List, Dict, Any, Optional
 from core.config import load_config
 from db import load_prizes, load_history, get_db_info, load_app_config
+
+# 대기화면 해제 세션 지속 제한 시간: 3시간 (초 단위: 10,800초)
+SESSION_TIMEOUT_SECONDS = 3 * 3600
 
 
 class LotteryState:
@@ -11,6 +15,7 @@ class LotteryState:
         self.history: List[Dict[str, Any]] = []
         self.pending_draw: Optional[Dict[str, Any]] = None
         self.is_started: bool = False  # 현장 추첨 대기화면 해제 여부
+        self.session_started_at: Optional[float] = None  # 대기화면 해제 시작 시각 (epoch seconds)
         self.selected_prize_id: Optional[int] = None  # 관리자가 현재 선택한 추첨 등수 ID
         self.audio_state: Dict[str, Any] = {
             "master_muted": False,
@@ -18,6 +23,16 @@ class LotteryState:
             "sfx_muted": False,
             "volume": 30
         }
+
+    def start_session(self):
+        """추첨 세션 시작 (대기화면 해제 및 시작 타임스탬프 기록)"""
+        self.is_started = True
+        self.session_started_at = time.time()
+
+    def stop_session(self):
+        """추첨 세션 종료 (대기화면 복귀)"""
+        self.is_started = False
+        self.session_started_at = None
 
     def sync_from_db(self):
         """DB에서 앱 설정, 등수 목록 및 추첨 이력 동기화"""
@@ -89,6 +104,8 @@ class LotteryState:
             "remaining_pool_count": remaining_pool_count,
             "current_pending_draw": self.pending_draw,
             "is_lottery_started": self.is_started,
+            "session_started_at": self.session_started_at,
+            "session_timeout_seconds": SESSION_TIMEOUT_SECONDS,
             "selected_prize_id": self.selected_prize_id,
             "db_info": get_db_info(len(self.history)),
             "audio_state": self.audio_state

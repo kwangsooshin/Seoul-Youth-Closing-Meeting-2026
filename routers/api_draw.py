@@ -1,14 +1,48 @@
+import asyncio
 import secrets
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from core.state import state
+from core.state import state, SESSION_TIMEOUT_SECONDS
 from core.websocket import manager
 from core.auth import is_authenticated_admin
 from db import save_record, delete_last_record, clear_records
 
 router = APIRouter(prefix="/api/draw", tags=["Draw"])
+
+# 세션 자동 종료(3시간) 비동기 타이머 태스크 핸들러
+_session_timeout_task: Optional[asyncio.Task] = None
+
+
+async def _auto_close_session_timer(delay_seconds: int = SESSION_TIMEOUT_SECONDS):
+    """대기화면 해제 후 3시간이 경과하면 자동으로 대기화면으로 복귀하고 BGM을 종료합니다."""
+    try:
+        await asyncio.sleep(delay_seconds)
+        if state.is_started:
+            print("[SESSION_TIMEOUT] 3시간 경과: 송출 스크린을 대기화면으로 자동 복귀시키고 BGM을 종료합니다.")
+            state.stop_session()
+            # BGM 종료 (정지 상태로 전환)
+            state.audio_state["bgm_paused"] = True
+
+            stats = state.get_stats()
+            # 1. 대기화면 전환 브로드캐스트 (auto_timeout=True 플래그)
+            await manager.broadcast({
+                "type": "LOTTERY_SESSION_STATE",
+                "started": False,
+                "auto_timeout": True,
+                "data": stats
+            })
+            # 2. BGM 정지 브로드캐스트
+            await manager.broadcast({
+                "type": "BGM_CONTROL",
+                "action": "stop",
+                "audio_state": state.audio_state
+            })
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"[WARN] 세션 3시간 자동 종료 태스크 오류: {e}")
 
 
 class LotterySessionRequest(BaseModel):
@@ -17,18 +51,33 @@ class LotterySessionRequest(BaseModel):
 
 @router.post("/session")
 async def set_lottery_session(req: LotterySessionRequest, request: Request):
-    """현장 추첨 이벤트 시작 및 대기 모드 전환"""
+    """현장 추첨 이벤트 시작 및 대기 모드 전환 (대기화면 해제 시 3시간 후 자동 복귀 타이머 가동)"""
+    global _session_timeout_task
     if not is_authenticated_admin(request):
         raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
-    state.is_started = req.started
+    if req.started:
+        # 기존 타이머 취소 후 새 3시간 타이머 시작
+        if _session_timeout_task and not _session_timeout_task.done():
+            _session_timeout_task.cancel()
+        state.start_session()
+        _session_timeout_task = asyncio.create_task(_auto_close_session_timer(SESSION_TIMEOUT_SECONDS))
+        print(f"[SESSION] 추첨 세션 시작: 대기화면 해제 (3시간 자동 종료 타이머 가동, 시작시각: {state.session_started_at})")
+    else:
+        # 수동으로 대기 모드 전환 시 타이머 취소
+        if _session_timeout_task and not _session_timeout_task.done():
+            _session_timeout_task.cancel()
+        state.stop_session()
+        print("[SESSION] 추첨 세션 중지: 대기화면 표시 전환")
+
     stats = state.get_stats()
     await manager.broadcast({
         "type": "LOTTERY_SESSION_STATE",
         "started": state.is_started,
+        "auto_timeout": False,
         "data": stats
     })
-    return {"success": True, "started": state.is_started}
+    return {"success": True, "started": state.is_started, "session_started_at": state.session_started_at}
 
 
 class DrawStartRequest(BaseModel):

@@ -1945,6 +1945,22 @@
         } else if (msg.type === 'LOTTERY_SESSION_STATE') {
           // 관리자가 [현장 추첨 시작] 또는 [대기 모드] 전환
           setLotterySessionState(msg.started);
+          if (!msg.started) {
+            // 대기화면 복귀 시 BGM 정지 및 재생 중단
+            isBgmPaused = true;
+            if (fadeInterval) { clearInterval(fadeInterval); fadeInterval = null; }
+            if (ytPlayer) {
+              try {
+                if (ytPlayer.seekTo) ytPlayer.seekTo(0);
+                if (ytPlayer.stopVideo) ytPlayer.stopVideo();
+                else if (ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+              } catch (e) {}
+            }
+            updateSoundStatusBadge();
+            if (msg.auto_timeout) {
+              console.log('[AUTO_TIMEOUT] 3시간 경과: 대기화면으로 자동 복귀되고 BGM이 종료되었습니다.');
+            }
+          }
         } else if (msg.type === 'PRIZE_TARGET_CHANGED') {
           // 관리자가 추첨할 등수 선택을 변경했을 때 현장 스크린에 즉시 반영
           if (!isCurrentlyRolling && !(currentState && currentState.current_pending_draw)) {

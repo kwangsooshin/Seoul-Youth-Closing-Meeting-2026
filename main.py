@@ -13,6 +13,9 @@ init_db(DEFAULT_PRIZES, DEFAULT_CONFIG)
 state.sync_from_db()
 
 
+import time
+from core.websocket import manager
+
 async def access_logs_cleanup_loop(interval_seconds: int = 3600):
     """FastAPI 백그라운드 스케줄러: 1시간마다 24시간 지난 오래된 access_logs 자동 정리"""
     print("[SCHEDULER] access_logs 백그라운드 자동 정리 스케줄러 가동 (주기: 1시간, 보관: 최근 24시간)")
@@ -24,18 +27,50 @@ async def access_logs_cleanup_loop(interval_seconds: int = 3600):
         await asyncio.sleep(interval_seconds)
 
 
+async def session_timeout_safety_loop(interval_seconds: int = 60):
+    """FastAPI 백그라운드 스케줄러: 3시간 세션 지속 만료 감시 (대기화면 복귀 및 BGM 종료)"""
+    while True:
+        try:
+            now = time.time()
+            if state.is_started and state.session_started_at and (now - state.session_started_at >= 3 * 3600):
+                print("[SCHEDULER] 추첨 세션 3시간 경과 감지: 대기화면 복귀 및 BGM 종료 실행")
+                state.stop_session()
+                state.audio_state["bgm_paused"] = True
+                stats = state.get_stats()
+                await manager.broadcast({
+                    "type": "LOTTERY_SESSION_STATE",
+                    "started": False,
+                    "auto_timeout": True,
+                    "data": stats
+                })
+                await manager.broadcast({
+                    "type": "BGM_CONTROL",
+                    "action": "stop",
+                    "audio_state": state.audio_state
+                })
+        except Exception as e:
+            print(f"[WARN] 세션 만료 감시 오류: {e}")
+        await asyncio.sleep(interval_seconds)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 1. 서버 시작 시 스케줄러 시작
     cleanup_task = asyncio.create_task(access_logs_cleanup_loop(interval_seconds=3600))
+    session_guard_task = asyncio.create_task(session_timeout_safety_loop(interval_seconds=60))
     yield
     # 2. 서버 종료 시 안전하게 정리
     cleanup_task.cancel()
+    session_guard_task.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
         pass
-    print("[SCHEDULER] access_logs 백그라운드 스케줄러 종료")
+    try:
+        await session_guard_task
+    except asyncio.CancelledError:
+        pass
+    print("[SCHEDULER] 백그라운드 스케줄러 종료")
 
 
 # --- FastAPI 애플리케이션 생성 ---
