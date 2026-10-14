@@ -70,7 +70,7 @@ async def set_lottery_session(req: LotterySessionRequest, request: Request):
             _session_timeout_task.cancel()
         state.start_session()
         _session_timeout_task = asyncio.create_task(_auto_close_session_timer())
-        print(f"[SESSION] 추첨 세션 시작: 대기화면 해제 (관리자 무조작 3시간 자동 종료 타이머 가동, 시작시각: {state.session_started_at})")
+        print("[SESSION] 추첨 세션 시작: 대기화면 해제")
     else:
         # 수동으로 대기 모드 전환 시 타이머 취소
         if _session_timeout_task and not _session_timeout_task.done():
