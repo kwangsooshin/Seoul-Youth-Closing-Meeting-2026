@@ -1,5 +1,6 @@
 import asyncio
 import secrets
+import time
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -15,30 +16,37 @@ router = APIRouter(prefix="/api/draw", tags=["Draw"])
 _session_timeout_task: Optional[asyncio.Task] = None
 
 
-async def _auto_close_session_timer(delay_seconds: int = SESSION_TIMEOUT_SECONDS):
-    """대기화면 해제 후 3시간이 경과하면 자동으로 대기화면으로 복귀하고 BGM을 종료합니다."""
+async def _auto_close_session_timer():
+    """대기화면 해제 후 관리자 세션 무갱신 상태로 3시간이 경과하면 자동으로 대기화면으로 복귀하고 BGM을 종료합니다."""
     try:
-        await asyncio.sleep(delay_seconds)
-        if state.is_started:
-            print("[SESSION_TIMEOUT] 3시간 경과: 송출 스크린을 대기화면으로 자동 복귀시키고 BGM을 종료합니다.")
-            state.stop_session()
-            # BGM 종료 (정지 상태로 전환)
-            state.audio_state["bgm_paused"] = True
+        while state.is_started:
+            now = time.time()
+            last_active = state.session_last_active_at or state.session_started_at or now
+            remaining = SESSION_TIMEOUT_SECONDS - (now - last_active)
+            if remaining <= 0:
+                print("[SESSION_TIMEOUT] 관리자 세션 갱신 없이 3시간 경과: 송출 스크린을 대기화면으로 자동 복귀시키고 BGM을 종료합니다.")
+                state.stop_session()
+                # BGM 종료 (정지 상태로 전환)
+                state.audio_state["bgm_paused"] = True
 
-            stats = state.get_stats()
-            # 1. 대기화면 전환 브로드캐스트 (auto_timeout=True 플래그)
-            await manager.broadcast({
-                "type": "LOTTERY_SESSION_STATE",
-                "started": False,
-                "auto_timeout": True,
-                "data": stats
-            })
-            # 2. BGM 정지 브로드캐스트
-            await manager.broadcast({
-                "type": "BGM_CONTROL",
-                "action": "stop",
-                "audio_state": state.audio_state
-            })
+                stats = state.get_stats()
+                # 1. 대기화면 전환 브로드캐스트 (auto_timeout=True 플래그)
+                await manager.broadcast({
+                    "type": "LOTTERY_SESSION_STATE",
+                    "started": False,
+                    "auto_timeout": True,
+                    "data": stats
+                })
+                # 2. BGM 정지 브로드캐스트
+                await manager.broadcast({
+                    "type": "BGM_CONTROL",
+                    "action": "stop",
+                    "audio_state": state.audio_state
+                })
+                break
+
+            # 남은 시간(최대 30초 주기)만큼 대기 후 재검사
+            await asyncio.sleep(min(max(1, remaining), 30))
     except asyncio.CancelledError:
         pass
     except Exception as e:
@@ -51,18 +59,18 @@ class LotterySessionRequest(BaseModel):
 
 @router.post("/session")
 async def set_lottery_session(req: LotterySessionRequest, request: Request):
-    """현장 추첨 이벤트 시작 및 대기 모드 전환 (대기화면 해제 시 3시간 후 자동 복귀 타이머 가동)"""
+    """현장 추첨 이벤트 시작 및 대기 모드 전환 (관리자 무조작 3시간 후 자동 복귀 타이머 가동)"""
     global _session_timeout_task
     if not is_authenticated_admin(request):
         raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
     if req.started:
-        # 기존 타이머 취소 후 새 3시간 타이머 시작
+        # 기존 타이머 취소 후 관리자 활동 기준 3시간 슬라이딩 타이머 시작
         if _session_timeout_task and not _session_timeout_task.done():
             _session_timeout_task.cancel()
         state.start_session()
-        _session_timeout_task = asyncio.create_task(_auto_close_session_timer(SESSION_TIMEOUT_SECONDS))
-        print(f"[SESSION] 추첨 세션 시작: 대기화면 해제 (3시간 자동 종료 타이머 가동, 시작시각: {state.session_started_at})")
+        _session_timeout_task = asyncio.create_task(_auto_close_session_timer())
+        print(f"[SESSION] 추첨 세션 시작: 대기화면 해제 (관리자 무조작 3시간 자동 종료 타이머 가동, 시작시각: {state.session_started_at})")
     else:
         # 수동으로 대기 모드 전환 시 타이머 취소
         if _session_timeout_task and not _session_timeout_task.done():
@@ -77,7 +85,12 @@ async def set_lottery_session(req: LotterySessionRequest, request: Request):
         "auto_timeout": False,
         "data": stats
     })
-    return {"success": True, "started": state.is_started, "session_started_at": state.session_started_at}
+    return {
+        "success": True,
+        "started": state.is_started,
+        "session_started_at": state.session_started_at,
+        "session_last_active_at": state.session_last_active_at
+    }
 
 
 class DrawStartRequest(BaseModel):

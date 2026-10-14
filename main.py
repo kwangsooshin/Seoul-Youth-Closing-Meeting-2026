@@ -28,12 +28,13 @@ async def access_logs_cleanup_loop(interval_seconds: int = 3600):
 
 
 async def session_timeout_safety_loop(interval_seconds: int = 60):
-    """FastAPI 백그라운드 스케줄러: 3시간 세션 지속 만료 감시 (대기화면 복귀 및 BGM 종료)"""
+    """FastAPI 백그라운드 스케줄러: 관리자 세션 무갱신 3시간 지속 만료 감시 (대기화면 복귀 및 BGM 종료)"""
     while True:
         try:
             now = time.time()
-            if state.is_started and state.session_started_at and (now - state.session_started_at >= 3 * 3600):
-                print("[SCHEDULER] 추첨 세션 3시간 경과 감지: 대기화면 복귀 및 BGM 종료 실행")
+            last_active = state.session_last_active_at or state.session_started_at
+            if state.is_started and last_active and (now - last_active >= 3 * 3600):
+                print("[SCHEDULER] 관리자 세션 갱신 없이 3시간 경과 감지: 대기화면 복귀 및 BGM 종료 실행")
                 state.stop_session()
                 state.audio_state["bgm_paused"] = True
                 stats = state.get_stats()

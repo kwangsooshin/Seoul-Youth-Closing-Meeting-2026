@@ -85,6 +85,17 @@ async def logout_admin(request: Request, response: Response):
     return {"success": True, "message": "성공적으로 로그아웃되었습니다."}
 
 
+@router.post("/admin/ping")
+async def ping_admin(request: Request):
+    """관리자 활동 유지를 위한 가벼운 핑 (유휴 세션 및 송출 타이머 갱신)"""
+    if not is_authenticated_admin(request):
+        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
+    return {
+        "success": True,
+        "session_last_active_at": state.session_last_active_at
+    }
+
+
 
 @router.get("/state")
 async def get_state():

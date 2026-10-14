@@ -59,6 +59,15 @@ def verify_admin_token(token: Optional[str]) -> bool:
 
     # 3. 정상 활동 확인 -> 마지막 활동 시각 갱신
     session["last_activity"] = now
+
+    # 4. 송출 스크린 세션이 진행 중인 경우 관리자 활동에 맞춰 송출 세션 타이머도 연장(갱신)
+    try:
+        from core.state import state
+        if state.is_started:
+            state.touch_session(now)
+    except Exception:
+        pass
+
     return True
 
 

@@ -1149,6 +1149,9 @@
       }
       try {
         const res = await fetch(url, options);
+        if (res.ok) {
+          touchSessionActivity();
+        }
         if (res.status === 401) {
           // 세션 토큰 만료 시 로그인 페이지로 즉시 이동
           sessionStorage.removeItem('admin_token');
@@ -1196,9 +1199,12 @@
         const msg = JSON.parse(event.data);
         if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET' || msg.type === 'DRAW_CANCELLED' || msg.type === 'LOTTERY_SESSION_STATE' || msg.type === 'PRIZE_TARGET_CHANGED') {
           currentState = msg.data;
+          if (msg.data && msg.data.session_last_active_at) {
+            touchSessionActivity(msg.data.session_last_active_at * 1000);
+          }
           renderAdminState(msg.data);
           if (msg.type === 'LOTTERY_SESSION_STATE' && msg.auto_timeout) {
-            alert('⏰ [세션 자동 종료 안내]\n\n대기화면 해제 후 3시간이 경과하여 송출 스크린이 자동으로 대기화면으로 복귀하고 BGM이 종료되었습니다.');
+            alert('⏰ [세션 자동 종료 안내]\n\n관리자 조작 중단 후 3시간이 경과하여 송출 스크린이 자동으로 대기화면으로 복귀하고 BGM이 종료되었습니다.');
           }
         } else if (msg.type === 'BGM_CONTROL') {
           if (msg.audio_state) {
@@ -1286,7 +1292,7 @@
       }
 
       // 추첨 세션 상태(대기 vs 시작) UI 갱신
-      updateSessionUI(Boolean(state.is_lottery_started), state.session_started_at);
+      updateSessionUI(Boolean(state.is_lottery_started), state.session_started_at, state.session_last_active_at);
 
       // 1. 추첨 진행 탭 등수 셀렉트 박스 갱신
       const prizeSelect = document.getElementById('prizeSelect');
@@ -1818,8 +1824,10 @@
           if (currentState) {
             currentState.is_lottery_started = data.started;
             currentState.session_started_at = data.session_started_at;
+            currentState.session_last_active_at = data.session_last_active_at;
           }
-          updateSessionUI(data.started, data.session_started_at);
+          touchSessionActivity(data.session_last_active_at ? data.session_last_active_at * 1000 : null);
+          updateSessionUI(data.started, data.session_started_at, data.session_last_active_at);
           resetDrawControlsToIdle();
         } else {
           const err = await res.json();
@@ -1831,21 +1839,36 @@
     }
 
     let sessionCountdownInterval = null;
+    let lastSessionActivityMs = Date.now();
 
-    function startSessionCountdown(startedAt) {
+    function touchSessionActivity(customMs = null) {
+      if (customMs) {
+        lastSessionActivityMs = Math.max(lastSessionActivityMs, customMs);
+      } else {
+        lastSessionActivityMs = Date.now();
+      }
+    }
+
+    function startSessionCountdown(startedAt, lastActiveAt = null) {
       if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
       const timerBadge = document.getElementById('sessionTimerBadge');
       if (!timerBadge) return;
 
       const totalTimeoutMs = 3 * 3600 * 1000;
-      const startMs = (startedAt ? startedAt * 1000 : Date.now());
+      if (lastActiveAt) {
+        lastSessionActivityMs = Math.max(lastSessionActivityMs, lastActiveAt * 1000);
+      } else if (startedAt) {
+        lastSessionActivityMs = Math.max(lastSessionActivityMs, startedAt * 1000);
+      } else {
+        lastSessionActivityMs = Date.now();
+      }
 
       function tick() {
-        const elapsed = Date.now() - startMs;
+        const elapsed = Date.now() - lastSessionActivityMs;
         const remaining = Math.max(0, totalTimeoutMs - elapsed);
 
         if (remaining <= 0) {
-          timerBadge.textContent = '⏱️ 3시간 만료: 자동 대기화면 복귀 중...';
+          timerBadge.textContent = '⏱️ 3시간 무조작 만료: 자동 대기화면 복귀 중...';
           clearInterval(sessionCountdownInterval);
           sessionCountdownInterval = null;
           return;
@@ -1855,7 +1878,7 @@
         const mins = Math.floor((remaining % (3600 * 1000)) / (60 * 1000));
         const secs = Math.floor((remaining % (60 * 1000)) / 1000);
         const pad = (n) => String(n).padStart(2, '0');
-        timerBadge.textContent = `⏱️ 자동 종료까지: ${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+        timerBadge.textContent = `⏱️ 무조작 자동 복귀까지: ${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
         timerBadge.style.display = 'inline-block';
       }
 
@@ -1872,7 +1895,7 @@
       if (timerBadge) timerBadge.style.display = 'none';
     }
 
-    function updateSessionUI(started, startedAt = null) {
+    function updateSessionUI(started, startedAt = null, lastActiveAt = null) {
       const badge = document.getElementById('sessionStatusBadge');
       const desc = document.getElementById('sessionStatusDesc');
       const btnStart = document.getElementById('btnStartLotterySession');
@@ -1891,12 +1914,15 @@
           badge.style.color = '#34d399';
         }
         if (desc) {
-          desc.innerHTML = '현장 스크린의 대기화면이 해제되었습니다. 이제 <strong>[🎯 추첨 진행]</strong> 탭에서 추첨을 진행할 수 있습니다.<br><span style="color: #94a3b8; font-size: 0.82rem;">⏱️ 행사 종료 후 방치 방지를 위해 <strong>3시간 후 자동으로 대기화면으로 복귀하고 BGM이 종료</strong>됩니다.</span>';
+          desc.innerHTML = '현장 스크린의 대기화면이 해제되었습니다. 이제 <strong>[🎯 추첨 진행]</strong> 탭에서 추첨을 진행할 수 있습니다.<br><span style="color: #94a3b8; font-size: 0.82rem;">⏱️ 행사 종료 후 방치 방지를 위해 <strong>관리자 조작 중단 후 3시간 경과 시 자동으로 대기화면으로 복귀하고 BGM이 종료</strong>됩니다. (조작 시 3시간 타이머 자동 갱신)</span>';
         }
         if (btnStart) btnStart.style.display = 'none';
         if (btnPause) btnPause.style.display = 'inline-flex';
         if (btnGoToDraw) btnGoToDraw.style.display = 'inline-flex';
-        startSessionCountdown(startedAt || (currentState && currentState.session_started_at));
+        startSessionCountdown(
+          startedAt || (currentState && currentState.session_started_at),
+          lastActiveAt || (currentState && currentState.session_last_active_at)
+        );
       } else {
         stopSessionCountdown();
         if (badge) {
@@ -1905,13 +1931,36 @@
           badge.style.color = '#fbbf24';
         }
         if (desc) {
-          desc.innerHTML = '현재 현장 송출 스크린에 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기화면이 표시 중입니다.<br>추첨을 진행하려면 아래 <strong>[🔓 대기화면 해제]</strong> 버튼을 눌러주세요.<br><span style="color: #94a3b8; font-size: 0.82rem;">(대기화면 해제 시 3시간 동안 세션이 유지되며, 3시간 경과 시 자동으로 대기화면으로 돌아가고 BGM이 종료됩니다)</span>';
+          desc.innerHTML = '현재 현장 송출 스크린에 <strong>[잠시 후 현장 추첨이 시작됩니다!]</strong> 대기화면이 표시 중입니다.<br>추첨을 진행하려면 아래 <strong>[🔓 대기화면 해제]</strong> 버튼을 눌러주세요.<br><span style="color: #94a3b8; font-size: 0.82rem;">(대기화면 해제 시 관리자 활동이 유지되는 동안 계속 유지되며, 조작 중단 후 3시간 경과 시 자동으로 대기화면으로 돌아가고 BGM이 종료됩니다)</span>';
         }
         if (btnStart) btnStart.style.display = 'inline-flex';
         if (btnPause) btnPause.style.display = 'none';
         if (btnGoToDraw) btnGoToDraw.style.display = 'none';
       }
     }
+
+    // 관리자 페이지 조작(클릭 등) 시 활동 연장 핑 (최대 5분에 1회 전송하여 세션 및 송출 타이머 유지)
+    let lastAdminPingTime = 0;
+    function reportAdminActive() {
+      touchSessionActivity();
+      const now = Date.now();
+      if (now - lastAdminPingTime > 5 * 60 * 1000) {
+        lastAdminPingTime = now;
+        if (adminToken) {
+          fetch('/api/admin/ping', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+          }).then(res => {
+            if (res.status === 401) {
+              sessionStorage.removeItem('admin_token');
+              window.location.href = '/admin/login';
+            }
+          }).catch(() => {});
+        }
+      }
+    }
+    window.addEventListener('click', reportAdminActive, { passive: true });
+    window.addEventListener('keydown', reportAdminActive, { passive: true });
 
     // --- 현장 사운드 & 배경음악(BGM) 원격 제어 함수 ---
     let adminAudioState = {

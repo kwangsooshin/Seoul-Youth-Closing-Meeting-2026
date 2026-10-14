@@ -16,6 +16,7 @@ class LotteryState:
         self.pending_draw: Optional[Dict[str, Any]] = None
         self.is_started: bool = False  # 현장 추첨 대기화면 해제 여부
         self.session_started_at: Optional[float] = None  # 대기화면 해제 시작 시각 (epoch seconds)
+        self.session_last_active_at: Optional[float] = None  # 관리자 활동 기준 마지막 갱신 시각 (epoch seconds)
         self.selected_prize_id: Optional[int] = None  # 관리자가 현재 선택한 추첨 등수 ID
         self.audio_state: Dict[str, Any] = {
             "master_muted": False,
@@ -26,13 +27,21 @@ class LotteryState:
 
     def start_session(self):
         """추첨 세션 시작 (대기화면 해제 및 시작 타임스탬프 기록)"""
+        now = time.time()
         self.is_started = True
-        self.session_started_at = time.time()
+        self.session_started_at = now
+        self.session_last_active_at = now
+
+    def touch_session(self, now: Optional[float] = None):
+        """관리자 활동 발생 시 송출 세션 타이머 연장(갱신)"""
+        if self.is_started:
+            self.session_last_active_at = now or time.time()
 
     def stop_session(self):
         """추첨 세션 종료 (대기화면 복귀)"""
         self.is_started = False
         self.session_started_at = None
+        self.session_last_active_at = None
 
     def sync_from_db(self):
         """DB에서 앱 설정, 등수 목록 및 추첨 이력 동기화"""
@@ -105,6 +114,7 @@ class LotteryState:
             "current_pending_draw": self.pending_draw,
             "is_lottery_started": self.is_started,
             "session_started_at": self.session_started_at,
+            "session_last_active_at": self.session_last_active_at,
             "session_timeout_seconds": SESSION_TIMEOUT_SECONDS,
             "selected_prize_id": self.selected_prize_id,
             "db_info": get_db_info(len(self.history)),
