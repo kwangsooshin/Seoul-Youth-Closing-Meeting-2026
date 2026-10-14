@@ -106,7 +106,6 @@ async def ping_admin(request: Request):
     }
 
 
-
 @router.get("/state")
 async def get_state():
     return state.get_stats()

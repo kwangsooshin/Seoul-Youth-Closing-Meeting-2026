@@ -1,20 +1,19 @@
 import asyncio
+import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from core.auth import cleanup_expired_sessions
 from core.config import DEFAULT_PRIZES, DEFAULT_CONFIG, BASE_DIR
 from core.state import state
+from core.websocket import manager
 from db import init_db, cleanup_old_access_logs
 from routers import pages, websocket, api_admin, api_draw
 
 # --- 데이터베이스 초기화 및 인메모리 상태 로드 ---
 init_db(DEFAULT_PRIZES, DEFAULT_CONFIG)
 state.sync_from_db()
-
-
-import time
-from core.websocket import manager
 
 async def access_logs_cleanup_loop(interval_seconds: int = 3600):
     """FastAPI 백그라운드 스케줄러: 1시간마다 24시간 지난 오래된 access_logs 자동 정리"""
@@ -33,7 +32,6 @@ async def session_timeout_safety_loop(interval_seconds: int = 60):
         try:
             now = time.time()
             # 1. 만료된 관리자 인증 세션 메모리 자동 정리
-            from core.auth import cleanup_expired_sessions
             cleanup_expired_sessions(now)
 
             # 2. 송출 스크린 3시간 무조작 세션 자동 종료 감시
