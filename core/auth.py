@@ -27,10 +27,6 @@ def cleanup_expired_sessions(now: Optional[float] = None) -> int:
     return cleaned
 
 
-def _cleanup_expired_sessions(now: float):
-    cleanup_expired_sessions(now)
-
-
 def create_admin_token() -> str:
     """안전한 난수 세션 토큰 발급 (유휴 6시간, 절대 24시간 유효)"""
     token = f"adm_{secrets.token_urlsafe(32)}"
@@ -42,7 +38,7 @@ def create_admin_token() -> str:
     }
 
     # 만료된 오래된 세션 토큰 청소
-    _cleanup_expired_sessions(now)
+    cleanup_expired_sessions(now)
 
     return token
 
