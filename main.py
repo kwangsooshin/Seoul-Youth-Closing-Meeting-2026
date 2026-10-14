@@ -32,6 +32,11 @@ async def session_timeout_safety_loop(interval_seconds: int = 60):
     while True:
         try:
             now = time.time()
+            # 1. 만료된 관리자 인증 세션 메모리 자동 정리
+            from core.auth import cleanup_expired_sessions
+            cleanup_expired_sessions(now)
+
+            # 2. 송출 스크린 3시간 무조작 세션 자동 종료 감시
             last_active = state.session_last_active_at or state.session_started_at
             if state.is_started and last_active and (now - last_active >= 3 * 3600):
                 print("[SCHEDULER] 관리자 세션 갱신 없이 3시간 경과 감지: 대기화면 복귀 및 BGM 종료 실행")

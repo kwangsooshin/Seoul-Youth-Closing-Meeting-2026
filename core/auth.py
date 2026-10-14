@@ -12,14 +12,23 @@ ABSOLUTE_TIMEOUT_SECONDS = 24 * 3600  # 절대 만료: 최초 로그인 후 24�
 SESSION_TTL_SECONDS = ABSOLUTE_TIMEOUT_SECONDS  # 쿠키 max_age 호환 (최대 24시간)
 
 
-def _cleanup_expired_sessions(now: float):
-    """만료된 오래된 세션 토큰 일괄 청소"""
+def cleanup_expired_sessions(now: Optional[float] = None) -> int:
+    """만료된 오래된 세션 토큰 일괄 청소 및 정리된 수 반환"""
+    if now is None:
+        now = time.time()
+    cleaned = 0
     for t in list(_sessions.keys()):
         s = _sessions.get(t)
         if not s:
             continue
         if (now > s.get("absolute_expires_at", 0)) or (now - s.get("last_activity", 0) > IDLE_TIMEOUT_SECONDS):
             del _sessions[t]
+            cleaned += 1
+    return cleaned
+
+
+def _cleanup_expired_sessions(now: float):
+    cleanup_expired_sessions(now)
 
 
 def create_admin_token() -> str:

@@ -35,8 +35,8 @@ def get_client_ip(request: Request) -> str:
 def record_audit(request: Request, page_type: str):
     """페이지 접속 감사 로그(Audit Log)를 백그라운드로 안전하게 DB 저장"""
     try:
-        ip = get_client_ip(request)
-        path = request.url.path
+        ip = get_client_ip(request)[:45]
+        path = request.url.path[:255]
         user_agent = request.headers.get("user-agent", "")[:255]
         save_access_log(ip=ip, page_type=page_type, path=path, user_agent=user_agent)
     except Exception as e:

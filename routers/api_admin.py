@@ -36,9 +36,13 @@ def _get_client_ip(request: Request) -> str:
 
 def _check_login_rate_limit(client_ip: str):
     now = time.time()
-    # 60초 지난 실패 기록 제거
+    # 60초 지난 실패 기록 제거 및 메모리 누수 방지
     attempts = [t for t in _failed_login_attempts[client_ip] if now - t < LOGIN_LOCKOUT_SECONDS]
-    _failed_login_attempts[client_ip] = attempts
+    if attempts:
+        _failed_login_attempts[client_ip] = attempts
+    else:
+        _failed_login_attempts.pop(client_ip, None)
+
     if len(attempts) >= MAX_LOGIN_ATTEMPTS:
         retry_after = int(LOGIN_LOCKOUT_SECONDS - (now - attempts[0]))
         raise HTTPException(
@@ -60,6 +64,11 @@ async def verify_admin(req: VerifyPasswordRequest, request: Request, response: R
     if hmac.compare_digest(req.password, ADMIN_PASSWORD):
         _failed_login_attempts.pop(client_ip, None)
         token = create_admin_token()
+        # HTTPS 접속 여부 감지 (Render/리버스 프록시 X-Forwarded-Proto 포함)
+        is_https = (
+            request.url.scheme == "https"
+            or request.headers.get("x-forwarded-proto") == "https"
+        )
         # 브라우저 페이지 이동(/admin 등) 시 서버 인증 체크를 위한 보안 쿠키 발급
         response.set_cookie(
             key="admin_token",
@@ -67,6 +76,7 @@ async def verify_admin(req: VerifyPasswordRequest, request: Request, response: R
             max_age=SESSION_TTL_SECONDS,
             httponly=True,
             samesite="lax",
+            secure=is_https,
             path="/"
         )
         return {"success": True, "token": token}
@@ -122,13 +132,24 @@ async def update_config(req: ConfigUpdateRequest, request: Request):
         raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
 
 
+    if req.min_number < 1:
+        raise HTTPException(status_code=400, detail="최소 번호는 1 이상이어야 합니다.")
+    if req.max_number > 50000:
+        raise HTTPException(status_code=400, detail="최대 번호는 50,000 이하이어야 합니다.")
     if req.min_number >= req.max_number:
         raise HTTPException(status_code=400, detail="최소 번호는 최대 번호보다 작아야 합니다.")
+    if (req.max_number - req.min_number + 1) > 50000:
+        raise HTTPException(status_code=400, detail="추첨 대상 번호 개수는 최대 50,000개까지 설정 가능합니다.")
 
     # 등수(prizes) 변경 -> DB 반영
     if req.prizes is not None:
         prizes = [
-            {"id": p.id, "rank": p.rank.strip(), "count": p.count, "name": (p.name or "").strip()}
+            {
+                "id": p.id,
+                "rank": p.rank.strip()[:50],
+                "count": max(1, min(1000, p.count)),
+                "name": (p.name or "").strip()[:100]
+            }
             for p in req.prizes
             if p.rank.strip() and p.count > 0
         ]
