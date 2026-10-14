@@ -23,8 +23,8 @@ def cleanup_expired_sessions(now: Optional[float] = None) -> int:
         if not s:
             continue
         if (now > s.get("absolute_expires_at", 0)) or (now - s.get("last_activity", 0) > IDLE_TIMEOUT_SECONDS):
-            del _sessions[t]
-            cleaned += 1
+            if _sessions.pop(t, None) is not None:
+                cleaned += 1
     return cleaned
 
 
@@ -55,12 +55,12 @@ def verify_admin_token(token: Optional[str]) -> bool:
     now = time.time()
     # 1. 절대 만료 체크 (최초 로그인 후 24시간 초과 시 무조건 만료)
     if now > session.get("absolute_expires_at", 0):
-        del _sessions[token]
+        _sessions.pop(token, None)
         return False
 
     # 2. 유휴 만료 체크 (마지막 활동 후 6시간 초과 시 만료)
     if now - session.get("last_activity", 0) > IDLE_TIMEOUT_SECONDS:
-        del _sessions[token]
+        _sessions.pop(token, None)
         return False
 
     # 3. 정상 활동 확인 -> 마지막 활동 시각 갱신
@@ -105,6 +105,6 @@ def is_authenticated_admin(request: Request) -> bool:
 
 def revoke_admin_token(token: Optional[str]):
     """로그아웃 또는 세션 파기 시 토큰 무효화"""
-    if token and token in _sessions:
-        del _sessions[token]
+    if token:
+        _sessions.pop(token, None)
 

@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from core.auth import cleanup_expired_sessions
 from core.config import DEFAULT_PRIZES, DEFAULT_CONFIG, BASE_DIR
-from core.state import state
+from core.state import state, SESSION_TIMEOUT_SECONDS
 from core.websocket import manager
 from db import init_db, cleanup_old_access_logs
 from routers import pages, websocket, api_admin, api_draw
@@ -26,18 +26,18 @@ async def access_logs_cleanup_loop(interval_seconds: int = 3600):
         await asyncio.sleep(interval_seconds)
 
 
-async def session_timeout_safety_loop(interval_seconds: int = 60):
-    """FastAPI 백그라운드 스케줄러: 관리자 세션 무갱신 3시간 지속 만료 감시 (대기화면 복귀 및 BGM 종료)"""
+async def session_timeout_safety_loop(interval_seconds: int = 30):
+    """FastAPI 백그라운드 스케줄러: 관리자 세션 무갱신 시 자동 대기화면 복귀 및 BGM 종료 감시 (주기: 30초)"""
     while True:
         try:
             now = time.time()
             # 1. 만료된 관리자 인증 세션 메모리 자동 정리
             cleanup_expired_sessions(now)
 
-            # 2. 송출 스크린 3시간 무조작 세션 자동 종료 감시
+            # 2. 송출 스크린 무조작 세션 자동 종료 감시
             last_active = state.session_last_active_at or state.session_started_at
-            if state.is_started and last_active and (now - last_active >= 3 * 3600):
-                print("[SCHEDULER] 관리자 세션 갱신 없이 3시간 경과 감지: 대기화면 복귀 및 BGM 종료 실행")
+            if state.is_started and last_active and (now - last_active >= SESSION_TIMEOUT_SECONDS):
+                print(f"[SCHEDULER] 관리자 세션 갱신 없이 {SESSION_TIMEOUT_SECONDS // 3600}시간 경과 감지: 대기화면 복귀 및 BGM 종료 실행")
                 state.stop_session()
                 state.audio_state["bgm_paused"] = True
                 stats = state.get_stats()
@@ -61,7 +61,7 @@ async def session_timeout_safety_loop(interval_seconds: int = 60):
 async def lifespan(app: FastAPI):
     # 1. 서버 시작 시 스케줄러 시작
     cleanup_task = asyncio.create_task(access_logs_cleanup_loop(interval_seconds=3600))
-    session_guard_task = asyncio.create_task(session_timeout_safety_loop(interval_seconds=60))
+    session_guard_task = asyncio.create_task(session_timeout_safety_loop(interval_seconds=30))
     yield
     # 2. 서버 종료 시 안전하게 정리
     cleanup_task.cancel()
@@ -91,6 +91,8 @@ async def add_security_headers(request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
     return response
 
 # 정적 파일 마운트 (static 폴더 존재 시)

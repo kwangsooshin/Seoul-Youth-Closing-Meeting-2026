@@ -8,7 +8,10 @@ router = APIRouter(tags=["WebSocket"])
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+    connected = await manager.connect(websocket)
+    if not connected:
+        return
+
     # 첫 연결 시 현재 전체 상태 전송
     try:
         await websocket.send_json({"type": "SYNC_STATE", "data": state.get_stats()})
@@ -29,7 +32,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             })
             except Exception:
                 pass
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception:
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
         manager.disconnect(websocket)

@@ -1,14 +1,13 @@
-import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
+from core.config import SCHEMA_NAME
 
 PRIZE_FIELDS = ("id", "rank", "name", "count", "sort_order")
 SUPABASE_HISTORY_SELECT = "id, prize_id, drawn_number, status, created_at, prizes(rank, name)"
 
 def get_schema() -> str:
     """실행 환경 ZONE(dev/service)에 따른 Supabase 스키마명 반환"""
-    zone = os.getenv("ZONE", "dev").strip().lower()
-    return "service" if zone in ("service", "prod", "production") else "dev"
+    return SCHEMA_NAME
 
 def table(client, table_name: str):
     """현재 스키마(dev 또는 service)의 테이블 쿼리 빌더 반환"""

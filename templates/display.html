@@ -1072,6 +1072,17 @@
   </footer>
 
   <script>
+    // --- XSS 방지 escapeHtml 유틸 ---
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     // --- YouTube IFrame BGM 플레이어 (무한 반복 & Autoplay 대응) ---
     let ytPlayer = null;
     let currentVideoId = 'ujCh9JIxCeA';
@@ -1868,8 +1879,8 @@
         card.innerHTML = `
           <div class="prize-card-header">
             <div>
-              <span class="prize-card-rank">${p.rank}</span>
-              <span style="font-size:0.9rem; color:#64748b; font-weight:600; margin-left:8px;">${p.name || ''}</span>
+              <span class="prize-card-rank">${escapeHtml(p.rank)}</span>
+              <span style="font-size:0.9rem; color:#64748b; font-weight:600; margin-left:8px;">${escapeHtml(p.name || '')}</span>
             </div>
             <div class="prize-card-progress">${p.confirmed_count} / ${p.target_count}명</div>
           </div>
@@ -1889,7 +1900,7 @@
         passedContainer.innerHTML = '<div class="empty-text">패스된 번호가 없습니다</div>';
       } else {
         passedContainer.innerHTML = passedItems.map(item => `
-          <span class="chip-passed" title="${item.prize_rank} 추첨 중 부재">#${item.drawn_number}</span>
+          <span class="chip-passed" title="${escapeHtml(item.prize_rank)} 추첨 중 부재">#${item.drawn_number}</span>
         `).join('');
       }
 
@@ -1987,7 +1998,7 @@
           // 관리자가 당첨 확정 클릭!
           const item = msg.item;
           const statusMsg = document.getElementById('drawStatusMsg');
-          statusMsg.innerHTML = `🎊 <strong style="color:var(--primary-blue); font-size:1.7rem;">#${item.number}</strong>번 <span style="color:var(--accent-orange-dark); font-weight:800;">[${item.prize_rank}]</span> 당첨이 최종 확정되었습니다!`;
+          statusMsg.innerHTML = `🎊 <strong style="color:var(--primary-blue); font-size:1.7rem;">#${item.number}</strong>번 <span style="color:var(--accent-orange-dark); font-weight:800;">[${escapeHtml(item.prize_rank)}]</span> 당첨이 최종 확정되었습니다!`;
           duckBgm(5, 3800); // 웅장한 팡파레 효과음 동안 BGM을 5%로 줄여 축하 사운드 극대화
           playFinalConfirmSound();
           triggerCelebrationConfetti();
@@ -2005,7 +2016,7 @@
           slotBox.className = 'slot-machine-container is-cancelled';
           numDisplay.textContent = 'CANCEL';
           numDisplay.className = 'lucky-number-display cancel-text';
-          statusMsg.innerHTML = `<span class="badge-cancel-alert">↩️ #${item.drawn_number}번 [${item.prize_rank}] 추첨 건이 취소되었습니다. (다시 추첨 가능)</span>`;
+          statusMsg.innerHTML = `<span class="badge-cancel-alert">↩️ #${item.drawn_number}번 [${escapeHtml(item.prize_rank)}] 추첨 건이 취소되었습니다. (다시 추첨 가능)</span>`;
           renderState(msg.data);
         } else if (msg.type === 'DRAW_PASSED') {
           // 관리자가 부재중 패스 클릭!

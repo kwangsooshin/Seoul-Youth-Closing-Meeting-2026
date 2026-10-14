@@ -3,33 +3,12 @@ from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from core.config import BASE_DIR
 from core.auth import verify_admin_token, revoke_admin_token
+from core.net import get_client_ip
 from db import save_access_log
 
 router = APIRouter(tags=["Pages"])
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-
-
-def get_client_ip(request: Request) -> str:
-    """프록시/클라우드 환경(X-Forwarded-For 등) 및 로컬 환경에서 클라이언트 IP 추출"""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        parts = [p.strip() for p in forwarded.split(",") if p.strip()]
-        if parts:
-            return parts[0]
-
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-
-    cf_ip = request.headers.get("cf-connecting-ip")
-    if cf_ip:
-        return cf_ip.strip()
-
-    if request.client and request.client.host:
-        return request.client.host
-
-    return "unknown"
 
 
 def record_audit(request: Request, page_type: str):
@@ -83,7 +62,17 @@ async def admin_logout_page(request: Request):
     if cookie_token:
         revoke_admin_token(cookie_token)
     response = RedirectResponse(url="/admin/login", status_code=303)
-    response.delete_cookie(key="admin_token", path="/")
+    is_https = (
+        request.url.scheme == "https"
+        or request.headers.get("x-forwarded-proto") == "https"
+    )
+    response.delete_cookie(
+        key="admin_token",
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=is_https
+    )
     return response
 
 
@@ -118,5 +107,5 @@ async def get_logo():
 async def get_favicon():
     logo_file = BASE_DIR / "logo.png"
     if logo_file.exists():
-        return FileResponse(str(logo_file), media_type="image/png")
+        return FileResponse(str(logo_file), media_type="image/x-icon")
     raise HTTPException(status_code=404, detail="Favicon not found")

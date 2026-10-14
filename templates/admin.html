@@ -1126,6 +1126,17 @@
   </footer>
 
   <script>
+    // --- XSS 방지 escapeHtml 유틸 ---
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     let adminToken = sessionStorage.getItem('admin_token') || '';
     let currentState = null;
 
@@ -1323,7 +1334,7 @@
       const summaryContainer = document.getElementById('simpleSummaryList');
       summaryContainer.innerHTML = state.prize_status.map(p => `
         <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:0.9rem;">
-          <span><strong>${p.rank}</strong> (${p.name || ''})</span>
+          <span><strong>${escapeHtml(p.rank)}</strong> (${escapeHtml(p.name || '')})</span>
           <span style="color:${p.is_completed ? '#10b981' : '#f59e0b'}; font-weight:700;">${p.confirmed_count} / ${p.target_count}명</span>
         </div>
       `).join('');
@@ -1357,7 +1368,7 @@
       } else {
         confirmedAdmin.innerHTML = confirmedItems.map(h => `
           <div style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between;">
-            <span><strong>[${h.prize_rank}]</strong> ${h.prize_name || ''}</span>
+            <span><strong>[${escapeHtml(h.prize_rank)}]</strong> ${escapeHtml(h.prize_name || '')}</span>
             <span style="color:#38bdf8; font-weight:700;">#${h.drawn_number}</span>
           </div>
         `).join('');
@@ -1369,7 +1380,7 @@
         passedAdmin.innerHTML = '<div style="color:var(--text-muted); padding:10px;">패스된 번호가 없습니다.</div>';
       } else {
         passedAdmin.innerHTML = passedItems.map(p => `
-          <span class="chip-passed-admin">#${p.drawn_number} (${p.prize_rank})</span>
+          <span class="chip-passed-admin">#${p.drawn_number} (${escapeHtml(p.prize_rank)})</span>
         `).join('');
       }
     }
@@ -2176,17 +2187,6 @@
       } catch (err) {
         alert('요청 중 오류가 발생했습니다.');
       }
-    }
-
-    // --- XSS 방지 escapeHtml 유틸 ---
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
     }
 
     // --- 접속 감사 로그(Audit Log) 상태 관리 & 실시간 페이징/필터링 ---
