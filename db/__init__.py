@@ -1,15 +1,36 @@
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable, TypeVar
 
 from core.config import DEFAULT_CONFIG, ZONE
 from . import sqlite_db
 from . import supabase_db
+
+T = TypeVar("T")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
 supabase_client = None
 use_supabase = False
+
+
+def _is_supabase_active() -> bool:
+    return bool(use_supabase and supabase_client is not None)
+
+
+def _query_with_fallback(
+    action_name: str,
+    supabase_fn: Callable[[Any], T],
+    sqlite_fn: Callable[[], T],
+) -> T:
+    """Supabase 우선 조회 후 일시적 오류 발생 시 로컬 SQLite로 안전하게 대체 조회"""
+    if _is_supabase_active():
+        try:
+            return supabase_fn(supabase_client)
+        except Exception as e:
+            print(f"[WARN] Supabase {action_name} 실패 -> SQLite로 대체: {e}")
+    return sqlite_fn()
+
 
 def init_db(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[str, Any]] = None):
     """DB 초기화: Supabase 우선 검증 후 미설정/실패 시 SQLite 초기화"""
@@ -43,12 +64,12 @@ def init_db(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[
         print("[INFO] Supabase 설정이 없어 로컬 SQLite(lottery.db) 모드로 동작합니다.")
         use_supabase = False
 
+
 def load_app_config(fallback_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Supabase 우선, 실패 시 SQLite에서 앱 설정 로드 (기본값 병합)"""
-    global use_supabase
     default_cfg = fallback_config or dict(DEFAULT_CONFIG)
 
-    if use_supabase and supabase_client:
+    if _is_supabase_active():
         try:
             cfg = supabase_db.load_config_db(supabase_client)
             if cfg:
@@ -56,85 +77,95 @@ def load_app_config(fallback_config: Optional[Dict[str, Any]] = None) -> Dict[st
         except Exception as e:
             print(f"[WARN] Supabase config 조회 실패 -> SQLite로 대체: {e}")
 
-    # SQLite 조회
     cfg = sqlite_db.load_config_db()
     if cfg:
         return {**default_cfg, **cfg}
 
     return default_cfg
 
+
 def save_app_config(config: Dict[str, Any]):
     """Supabase 우선 저장, 실패/오프라인 대비 SQLite에도 동기화 저장"""
-    global use_supabase
-    if use_supabase and supabase_client:
+    if _is_supabase_active():
         try:
             supabase_db.save_config_db(supabase_client, config)
         except Exception as e:
             print(f"[WARN] Supabase config 저장 실패 -> SQLite로 대체 저장: {e}")
-            use_supabase = False
 
-    # 로컬 SQLite에도 항상 저장하여 무중단 보장
     try:
         sqlite_db.save_config_db(config)
     except Exception as e:
         print(f"[WARN] SQLite config 저장 실패: {e}")
 
+
 def load_prizes() -> List[Dict[str, Any]]:
-    global use_supabase
-    if use_supabase and supabase_client:
-        try:
-            return supabase_db.load_prizes(supabase_client)
-        except Exception as e:
-            print(f"[WARN] Supabase 등수 조회 실패 -> SQLite로 대체: {e}")
-            use_supabase = False
-    return sqlite_db.load_prizes()
+    return _query_with_fallback(
+        "등수 조회",
+        lambda client: supabase_db.load_prizes(client),
+        sqlite_db.load_prizes,
+    )
+
 
 def load_history() -> List[Dict[str, Any]]:
-    global use_supabase
-    if use_supabase and supabase_client:
-        try:
-            return supabase_db.load_history(supabase_client)
-        except Exception as e:
-            print(f"[WARN] Supabase 이력 조회 실패 -> SQLite로 대체: {e}")
-            use_supabase = False
-    return sqlite_db.load_history()
+    return _query_with_fallback(
+        "이력 조회",
+        lambda client: supabase_db.load_history(client),
+        sqlite_db.load_history,
+    )
+
 
 def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]):
-    global use_supabase
-    if use_supabase and supabase_client:
+    if _is_supabase_active():
         try:
             supabase_db.save_prizes(supabase_client, prizes, current_prizes)
-            return
         except Exception as e:
             print(f"[WARN] Supabase 등수 저장 실패 -> SQLite로 대체 저장: {e}")
-            use_supabase = False
-    sqlite_db.save_prizes(prizes, current_prizes)
+
+    # 로컬 SQLite에도 동기화 백업 저장
+    try:
+        sqlite_db.save_prizes(prizes, sqlite_db.load_prizes())
+    except Exception as e:
+        print(f"[WARN] SQLite 등수 동기화 저장 실패: {e}")
+
 
 def save_record(record: dict, current_prizes: List[Dict[str, Any]]) -> dict:
-    global use_supabase
-    if use_supabase and supabase_client:
+    supabase_res = None
+    if _is_supabase_active():
         try:
-            res = supabase_db.save_record(supabase_client, record)
-            if res:
-                return res
+            supabase_res = supabase_db.save_record(supabase_client, record)
         except Exception as e:
-            print(f"[WARN] Supabase 저장 실패 -> SQLite로 대체 저장: {e}")
-            use_supabase = False
-    return sqlite_db.save_record(record, current_prizes)
+            print(f"[WARN] Supabase 기록 저장 실패 -> SQLite로 대체 저장: {e}")
+
+    try:
+        sqlite_res = sqlite_db.save_record(record, current_prizes)
+    except Exception as e:
+        if supabase_res:
+            print(f"[WARN] SQLite 기록 백업 저장 실패: {e}")
+            return supabase_res
+        raise
+
+    return supabase_res or sqlite_res
+
 
 def delete_last_record() -> Optional[int]:
-    global use_supabase
-    if use_supabase and supabase_client:
+    supabase_deleted = None
+    if _is_supabase_active():
         try:
-            return supabase_db.delete_last_record(supabase_client)
+            supabase_deleted = supabase_db.delete_last_record(supabase_client)
         except Exception as e:
             print(f"[WARN] Supabase 최근 기록 삭제 실패 -> SQLite로 대체: {e}")
-            use_supabase = False
-    return sqlite_db.delete_last_record()
+
+    try:
+        sqlite_deleted = sqlite_db.delete_last_record()
+    except Exception as e:
+        print(f"[WARN] SQLite 최근 기록 삭제 실패: {e}")
+        sqlite_deleted = None
+
+    return supabase_deleted if supabase_deleted is not None else sqlite_deleted
+
 
 def clear_records():
-    global use_supabase
-    if use_supabase and supabase_client:
+    if _is_supabase_active():
         try:
             supabase_db.clear_records(supabase_client)
         except Exception as e:
@@ -145,48 +176,48 @@ def clear_records():
     except Exception as e:
         print(f"[WARN] SQLite 초기화 오류: {e}")
 
+
 def get_db_info(history_count: int) -> Dict[str, str]:
     schema = supabase_db.get_schema()
+    active = _is_supabase_active()
     return {
-        "type": "SUPABASE" if use_supabase else "SQLITE",
-        "name": "Supabase 클라우드" if use_supabase else "로컬 SQLite (lottery.db)",
-        "details": f"스키마: {schema} ({history_count}건)" if use_supabase else f"파일: lottery.db ({history_count}건)",
+        "type": "SUPABASE" if active else "SQLITE",
+        "name": "Supabase 클라우드" if active else "로컬 SQLite (lottery.db)",
+        "details": f"스키마: {schema} ({history_count}건)" if active else f"파일: lottery.db ({history_count}건)",
         "schema": schema,
         "zone": ZONE,
     }
 
+
 def save_access_log(ip: str, page_type: str, path: str, user_agent: str = ""):
     """Supabase 우선 저장, 실패 시 SQLite 대체 저장"""
-    global use_supabase
     saved_supabase = False
-    if use_supabase and supabase_client:
+    if _is_supabase_active():
         try:
             supabase_db.save_access_log(supabase_client, ip, page_type, path, user_agent)
             saved_supabase = True
         except Exception as e:
             print(f"[WARN] Supabase access log 저장 실패 -> SQLite 대체 저장: {e}")
 
-    # Supabase 저장이 되지 않았거나 오프라인인 경우 SQLite에 저장 (또는 무중단 백업)
     if not saved_supabase:
         try:
             sqlite_db.save_access_log(ip, page_type, path, user_agent)
         except Exception as e:
             print(f"[WARN] SQLite access log 저장 실패: {e}")
 
+
 def load_access_logs(limit: int = 100) -> List[Dict[str, Any]]:
     """Supabase 우선 조회, 실패 시 SQLite 조회"""
-    global use_supabase
-    if use_supabase and supabase_client:
-        try:
-            return supabase_db.load_access_logs(supabase_client, limit)
-        except Exception as e:
-            print(f"[WARN] Supabase access log 조회 실패 -> SQLite 대체: {e}")
-    return sqlite_db.load_access_logs(limit)
+    return _query_with_fallback(
+        "access log 조회",
+        lambda client: supabase_db.load_access_logs(client, limit),
+        lambda: sqlite_db.load_access_logs(limit),
+    )
+
 
 def cleanup_old_access_logs(hours: int = 24):
     """Supabase 및 SQLite에서 24시간 지난 오래된 접속 감사 로그 자동 정리"""
-    global use_supabase
-    if use_supabase and supabase_client:
+    if _is_supabase_active():
         try:
             supabase_db.cleanup_old_access_logs(supabase_client, hours)
         except Exception as e:
@@ -197,11 +228,11 @@ def cleanup_old_access_logs(hours: int = 24):
     except Exception as e:
         print(f"[WARN] SQLite 감사 로그 정리 오류: {e}")
 
+
 def clear_all_access_logs() -> int:
     """Supabase 및 SQLite에서 모든 접속 감사 로그 초기화/삭제"""
-    global use_supabase
     deleted_count = 0
-    if use_supabase and supabase_client:
+    if _is_supabase_active():
         try:
             deleted_count = supabase_db.clear_all_access_logs(supabase_client)
         except Exception as e:
@@ -215,5 +246,6 @@ def clear_all_access_logs() -> int:
         print(f"[WARN] SQLite 감사 로그 전체 삭제 오류: {e}")
 
     return deleted_count
+
 
 

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from core.auth import cleanup_expired_sessions
-from core.config import DEFAULT_PRIZES, DEFAULT_CONFIG, BASE_DIR
+from core.config import DEFAULT_PRIZES, DEFAULT_CONFIG, BASE_DIR, IS_PRODUCTION
 from core.state import state, SESSION_TIMEOUT_SECONDS
 from core.websocket import manager
 from db import init_db, cleanup_old_access_logs
@@ -15,12 +15,13 @@ from routers import pages, websocket, api_admin, api_draw
 init_db(DEFAULT_PRIZES, DEFAULT_CONFIG)
 state.sync_from_db()
 
+
 async def access_logs_cleanup_loop(interval_seconds: int = 3600):
     """FastAPI 백그라운드 스케줄러: 1시간마다 24시간 지난 오래된 access_logs 자동 정리"""
     print("[SCHEDULER] access_logs 백그라운드 자동 정리 스케줄러 가동 (주기: 1시간, 보관: 최근 24시간)")
     while True:
         try:
-            cleanup_old_access_logs(hours=24)
+            await asyncio.to_thread(cleanup_old_access_logs, 24)
         except Exception as e:
             print(f"[WARN] access_logs 백그라운드 정리 오류: {e}")
         await asyncio.sleep(interval_seconds)
@@ -38,9 +39,10 @@ async def session_timeout_safety_loop(interval_seconds: int = 30):
             last_active = state.session_last_active_at or state.session_started_at
             if state.is_started and last_active and (now - last_active >= SESSION_TIMEOUT_SECONDS):
                 print(f"[SCHEDULER] 관리자 세션 갱신 없이 {SESSION_TIMEOUT_SECONDS // 3600}시간 경과 감지: 대기화면 복귀 및 BGM 종료 실행")
-                state.stop_session()
-                state.audio_state["bgm_paused"] = True
-                stats = state.get_stats()
+                async with state.lock:
+                    state.stop_session()
+                    state.audio_state["bgm_paused"] = True
+                    stats = state.get_stats()
                 await manager.broadcast({
                     "type": "LOTTERY_SESSION_STATE",
                     "started": False,
@@ -77,11 +79,14 @@ async def lifespan(app: FastAPI):
     print("[SCHEDULER] 백그라운드 스케줄러 종료")
 
 
-# --- FastAPI 애플리케이션 생성 ---
+# --- FastAPI 애플리케이션 생성 (운영 환경에서는 API 문서 노출 비활성화) ---
 app = FastAPI(
     title="2026 Seoul Youth Policy Network General Assembly Lottery System",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
 
 
@@ -93,6 +98,8 @@ async def add_security_headers(request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    if request.url.path.startswith("/admin") or request.url.path.startswith("/api/admin"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     return response
 
 # 정적 파일 마운트 (static 폴더 존재 시)
@@ -105,3 +112,4 @@ app.include_router(pages.router)
 app.include_router(websocket.router)
 app.include_router(api_admin.router)
 app.include_router(api_draw.router)
+

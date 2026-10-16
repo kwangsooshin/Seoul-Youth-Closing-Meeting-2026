@@ -1,21 +1,24 @@
+import asyncio
 import html
 import hmac
+import re
 import time
 from collections import defaultdict
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import BaseModel, Field
 
-from core.config import ADMIN_PASSWORD, DEFAULT_BGM_URL
+from core.config import ADMIN_PASSWORD, DEFAULT_BGM_URL, sanitize_youtube_url
 from core.state import state
 from core.websocket import manager
-from core.net import get_client_ip
+from core.net import get_rate_limit_keys
 from core.auth import (
     create_admin_token,
-    is_authenticated_admin,
+    require_admin,
     revoke_admin_token,
     get_admin_token_from_request,
-    SESSION_TTL_SECONDS,
+    set_admin_cookie,
+    clear_admin_cookie,
 )
 from db import (
     save_prizes,
@@ -31,71 +34,87 @@ router = APIRouter(prefix="/api", tags=["Admin"])
 
 # 관리자 로그인 시도 무차별 대입(Brute-force) 방지 메모리 저장소
 _failed_login_attempts: dict = defaultdict(list)
+_global_failed_attempts: List[float] = []
 MAX_LOGIN_ATTEMPTS = 5
+MAX_GLOBAL_LOGIN_ATTEMPTS = 25
 LOGIN_LOCKOUT_SECONDS = 60
+
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f<>]")
+
+
+def _sanitize_text(value: Optional[str], max_len: int) -> str:
+    """제어문자 및 HTML 태그 괄호(<, >) 제거 및 중복 이스케이프 방지 정규화"""
+    if not value:
+        return ""
+    unescaped = html.unescape(value).strip()
+    cleaned = _CONTROL_CHARS_RE.sub("", unescaped)
+    return cleaned[:max_len]
 
 
 def _prune_failed_attempts(now: float):
     """오래된 로그인 실패 기록 전역 청소 (메모리 누수 및 DoS 방지)"""
-    stale_ips = [
-        ip for ip, attempts in _failed_login_attempts.items()
+    global _global_failed_attempts
+    _global_failed_attempts = [t for t in _global_failed_attempts if now - t < LOGIN_LOCKOUT_SECONDS]
+    stale_keys = [
+        k for k, attempts in _failed_login_attempts.items()
         if not attempts or (now - attempts[-1] >= LOGIN_LOCKOUT_SECONDS)
     ]
-    for ip in stale_ips:
-        _failed_login_attempts.pop(ip, None)
+    for k in stale_keys:
+        _failed_login_attempts.pop(k, None)
 
 
-def _check_login_rate_limit(client_ip: str):
+def _check_login_rate_limit(rate_keys: List[str]):
+    global _global_failed_attempts
     now = time.time()
-    # 주기적 전역 정리 (저장소 크기가 50개를 초과할 때마다 만료된 기록 정리)
-    if len(_failed_login_attempts) > 50:
+    if len(_failed_login_attempts) > 50 or len(_global_failed_attempts) > MAX_GLOBAL_LOGIN_ATTEMPTS:
         _prune_failed_attempts(now)
 
-    attempts = [t for t in _failed_login_attempts.get(client_ip, []) if now - t < LOGIN_LOCKOUT_SECONDS]
-    if attempts:
-        _failed_login_attempts[client_ip] = attempts
-    else:
-        _failed_login_attempts.pop(client_ip, None)
-
-    if len(attempts) >= MAX_LOGIN_ATTEMPTS:
-        retry_after = int(LOGIN_LOCKOUT_SECONDS - (now - attempts[0]))
+    # 1. 전역 브루트포스 방어 (IP 스푸핑/분산 공격 시 전체 보호)
+    _global_failed_attempts = [t for t in _global_failed_attempts if now - t < LOGIN_LOCKOUT_SECONDS]
+    if len(_global_failed_attempts) >= MAX_GLOBAL_LOGIN_ATTEMPTS:
+        retry_after = int(LOGIN_LOCKOUT_SECONDS - (now - _global_failed_attempts[0]))
         raise HTTPException(
             status_code=429,
-            detail=f"비밀번호 입력 시도 횟수를 초과했습니다. {max(1, retry_after)}초 후 다시 시도해주세요."
+            detail=f"비정상적인 로그인 시도가 감지되었습니다. {max(1, retry_after)}초 후 다시 시도해주세요."
         )
+
+    # 2. 클라이언트 IP 및 소켓 IP별 제한 확인
+    for key in rate_keys:
+        attempts = [t for t in _failed_login_attempts.get(key, []) if now - t < LOGIN_LOCKOUT_SECONDS]
+        if attempts:
+            _failed_login_attempts[key] = attempts
+        else:
+            _failed_login_attempts.pop(key, None)
+
+        if len(attempts) >= MAX_LOGIN_ATTEMPTS:
+            retry_after = int(LOGIN_LOCKOUT_SECONDS - (now - attempts[0]))
+            raise HTTPException(
+                status_code=429,
+                detail=f"비밀번호 입력 시도 횟수를 초과했습니다. {max(1, retry_after)}초 후 다시 시도해주세요."
+            )
 
 
 class VerifyPasswordRequest(BaseModel):
-    password: str
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 @router.post("/admin/verify")
 async def verify_admin(req: VerifyPasswordRequest, request: Request, response: Response):
-    client_ip = get_client_ip(request)
-    _check_login_rate_limit(client_ip)
+    rate_keys = get_rate_limit_keys(request)
+    _check_login_rate_limit(rate_keys)
 
     # 타이밍 공격 방지를 위한 hmac.compare_digest 사용
     if hmac.compare_digest(req.password, ADMIN_PASSWORD):
-        _failed_login_attempts.pop(client_ip, None)
+        for key in rate_keys:
+            _failed_login_attempts.pop(key, None)
         token = create_admin_token()
-        # HTTPS 접속 여부 감지 (Render/리버스 프록시 X-Forwarded-Proto 포함)
-        is_https = (
-            request.url.scheme == "https"
-            or request.headers.get("x-forwarded-proto") == "https"
-        )
-        # 브라우저 페이지 이동(/admin 등) 시 서버 인증 체크를 위한 보안 쿠키 발급
-        response.set_cookie(
-            key="admin_token",
-            value=token,
-            max_age=SESSION_TTL_SECONDS,
-            httponly=True,
-            samesite="lax",
-            secure=is_https,
-            path="/"
-        )
+        set_admin_cookie(request, response, token)
         return {"success": True, "token": token}
 
-    _failed_login_attempts[client_ip].append(time.time())
+    now = time.time()
+    _global_failed_attempts.append(now)
+    for key in rate_keys:
+        _failed_login_attempts[key].append(now)
     raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
 
 
@@ -105,25 +124,16 @@ async def logout_admin(request: Request, response: Response):
     token = get_admin_token_from_request(request)
     if token:
         revoke_admin_token(token)
-    is_https = (
-        request.url.scheme == "https"
-        or request.headers.get("x-forwarded-proto") == "https"
-    )
-    response.delete_cookie(
-        key="admin_token",
-        path="/",
-        httponly=True,
-        samesite="lax",
-        secure=is_https
-    )
+    cookie_token = request.cookies.get("admin_token")
+    if cookie_token:
+        revoke_admin_token(cookie_token)
+    clear_admin_cookie(request, response)
     return {"success": True, "message": "성공적으로 로그아웃되었습니다."}
 
 
-@router.post("/admin/ping")
-async def ping_admin(request: Request):
+@router.post("/admin/ping", dependencies=[Depends(require_admin)])
+async def ping_admin():
     """관리자 활동 유지를 위한 가벼운 핑 (유휴 세션 및 송출 타이머 갱신)"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
     return {
         "success": True,
         "session_last_active_at": state.session_last_active_at
@@ -149,11 +159,8 @@ class ConfigUpdateRequest(BaseModel):
     prizes: Optional[List[PrizeInput]] = None  # None이면 등수 설정은 변경하지 않음
 
 
-@router.post("/config")
-async def update_config(req: ConfigUpdateRequest, request: Request):
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
-
+@router.post("/config", dependencies=[Depends(require_admin)])
+async def update_config(req: ConfigUpdateRequest):
     if req.min_number < 1:
         raise HTTPException(status_code=400, detail="최소 번호는 1 이상이어야 합니다.")
     if req.max_number > 1000:
@@ -161,60 +168,65 @@ async def update_config(req: ConfigUpdateRequest, request: Request):
     if req.min_number >= req.max_number:
         raise HTTPException(status_code=400, detail="최소 번호는 최대 번호보다 작아야 합니다.")
 
-    # 등수(prizes) 변경 -> DB 반영
-    if req.prizes is not None:
-        if len(req.prizes) > 100:
-            raise HTTPException(status_code=400, detail="등수는 최대 100개까지만 설정할 수 있습니다.")
-
-        # XSS 방어를 위한 html.escape 및 길이 제한 적용
-        prizes = [
-            {
-                "id": p.id,
-                "rank": html.escape(p.rank.strip())[:50],
-                "count": max(1, min(1000, p.count)),
-                "name": html.escape((p.name or "").strip())[:100]
-            }
-            for p in req.prizes
-            if p.rank.strip() and p.count > 0
-        ]
-        if not prizes:
-            raise HTTPException(status_code=400, detail="최소 1개 이상의 등수를 설정해야 합니다.")
-
-        # 이력/진행 중 추첨에서 참조 중인 등수는 삭제 불가
-        incoming_ids = {p["id"] for p in prizes if p["id"] is not None}
-        in_use_ids = {h["prize_id"] for h in state.history}
-        if state.pending_draw:
-            in_use_ids.add(state.pending_draw["prize_id"])
-        blocked = [p["rank"] for p in state.prizes if p["id"] in in_use_ids and p["id"] not in incoming_ids]
-        if blocked:
-            raise HTTPException(
-                status_code=400,
-                detail=f"추첨 이력이 있는 등수는 삭제할 수 없습니다: {', '.join(blocked)} (이력 초기화 후 삭제하세요)",
-            )
-
-        try:
-            save_prizes(prizes, state.prizes)
-            state.prizes = load_prizes()
-            state.history = load_history()  # 등수명 변경을 이력(JOIN)에 반영
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"등수 저장 실패: {e}")
-
-    # 번호 범위 / BGM 설정 DB(Supabase / SQLite)에 영구 저장
-    clean_bgm_url = (req.bgm_youtube_url or DEFAULT_BGM_URL).strip()[:500]
-    new_config = {
-        "min_number": req.min_number,
-        "max_number": req.max_number,
-        "bgm_youtube_url": clean_bgm_url,
-    }
     try:
-        save_app_config(new_config)
-    except Exception as e:
-        print(f"[WARN] 설정 DB 저장 오류: {e}")
+        clean_bgm_url = sanitize_youtube_url(req.bgm_youtube_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    state.config = new_config
+    async with state.lock:
+        # 등수(prizes) 변경 -> DB 반영
+        if req.prizes is not None:
+            if len(req.prizes) > 100:
+                raise HTTPException(status_code=400, detail="등수는 최대 100개까지만 설정할 수 있습니다.")
 
-    # 상태 브로드캐스트
-    stats = state.get_stats()
+            prizes = [
+                {
+                    "id": p.id,
+                    "rank": _sanitize_text(p.rank, 50),
+                    "count": max(1, min(1000, p.count)),
+                    "name": _sanitize_text(p.name, 100),
+                }
+                for p in req.prizes
+                if _sanitize_text(p.rank, 50) and p.count > 0
+            ]
+            if not prizes:
+                raise HTTPException(status_code=400, detail="최소 1개 이상의 등수를 설정해야 합니다.")
+
+            # 이력/진행 중 추첨에서 참조 중인 등수는 삭제 불가
+            incoming_ids = {p["id"] for p in prizes if p["id"] is not None}
+            in_use_ids = {h["prize_id"] for h in state.history}
+            if state.pending_draw:
+                in_use_ids.add(state.pending_draw["prize_id"])
+            blocked = [p["rank"] for p in state.prizes if p["id"] in in_use_ids and p["id"] not in incoming_ids]
+            if blocked:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"추첨 이력이 있는 등수는 삭제할 수 없습니다: {', '.join(blocked)} (이력 초기화 후 삭제하세요)",
+                )
+
+            try:
+                await asyncio.to_thread(save_prizes, prizes, state.prizes)
+                state.prizes = await asyncio.to_thread(load_prizes)
+                state.history = await asyncio.to_thread(load_history)  # 등수명 변경을 이력(JOIN)에 반영
+                state.refresh_selected_prize()
+            except Exception as e:
+                print(f"[ERROR] 등수 저장 실패: {e}")
+                raise HTTPException(status_code=500, detail="등수 설정을 저장하는 중 서버 오류가 발생했습니다.")
+
+        # 번호 범위 / BGM 설정 DB(Supabase / SQLite)에 영구 저장
+        new_config = {
+            "min_number": req.min_number,
+            "max_number": req.max_number,
+            "bgm_youtube_url": clean_bgm_url,
+        }
+        try:
+            await asyncio.to_thread(save_app_config, new_config)
+        except Exception as e:
+            print(f"[WARN] 설정 DB 저장 오류: {e}")
+
+        state.config = new_config
+        stats = state.get_stats()
+
     await manager.broadcast({"type": "CONFIG_UPDATED", "data": stats})
     return {"success": True, "config": stats["config"]}
 
@@ -234,11 +246,8 @@ class BgmControlRequest(BaseModel):
     volume: Optional[int] = 30
 
 
-@router.post("/bgm/control")
-async def control_bgm(req: BgmControlRequest, request: Request):
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
-
+@router.post("/bgm/control", dependencies=[Depends(require_admin)])
+async def control_bgm(req: BgmControlRequest):
     if req.action not in VALID_BGM_ACTIONS:
         raise HTTPException(status_code=400, detail="유효하지 않은 오디오 제어 액션입니다.")
 
@@ -275,40 +284,31 @@ async def control_bgm(req: BgmControlRequest, request: Request):
     }
 
 
-@router.get("/admin/audit-logs")
-async def get_audit_logs(request: Request, limit: int = 100):
-    """페이지 접속 감사 로그(Audit Log) 목록 조회 (Bearer 세션 토큰 인증)"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
-
-    # limit이 0 이하이거나 1000 초과 시 최대 1000건(최근 24시간 전체 보관분 수용) 조회
+@router.get("/admin/audit-logs", dependencies=[Depends(require_admin)])
+async def get_audit_logs(limit: int = 100):
+    """페이지 접속 감사 로그(Audit Log) 목록 조회 (관리자 인증)"""
     effective_limit = 1000 if (limit <= 0 or limit > 1000) else limit
-    logs = load_access_logs(limit=effective_limit)
+    logs = await asyncio.to_thread(load_access_logs, effective_limit)
     return {"success": True, "logs": logs}
 
 
-@router.post("/admin/audit-logs/cleanup")
-async def cleanup_audit_logs_manual(request: Request, hours: int = 24):
+@router.post("/admin/audit-logs/cleanup", dependencies=[Depends(require_admin)])
+async def cleanup_audit_logs_manual(hours: int = 24):
     """지정된 시간(기본 24시간) 이전의 감사 로그 수동 정리 (hours=0 시 전체 정리)"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
-
     if hours < 0 or hours > 8760:
         raise HTTPException(status_code=400, detail="유효한 시간(0 ~ 8760시간)을 입력해주세요.")
 
     if hours == 0:
-        deleted_count = clear_all_access_logs()
+        deleted_count = await asyncio.to_thread(clear_all_access_logs)
         return {"success": True, "message": f"전체 감사 로그 {deleted_count}건을 초기화했습니다."}
 
-    cleanup_old_access_logs(hours=hours)
+    await asyncio.to_thread(cleanup_old_access_logs, hours)
     return {"success": True, "message": f"{hours}시간 경과 감사 로그를 정리했습니다."}
 
 
-@router.post("/admin/audit-logs/clear-all")
-async def clear_all_audit_logs_endpoint(request: Request):
+@router.post("/admin/audit-logs/clear-all", dependencies=[Depends(require_admin)])
+async def clear_all_audit_logs_endpoint():
     """모든 접속 감사 로그 전체 초기화/삭제"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
-
-    deleted_count = clear_all_access_logs()
+    deleted_count = await asyncio.to_thread(clear_all_access_logs)
     return {"success": True, "message": f"전체 접속 감사 로그 {deleted_count}건을 모두 초기화했습니다."}
+

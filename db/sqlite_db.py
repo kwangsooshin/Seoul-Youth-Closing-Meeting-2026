@@ -15,12 +15,13 @@ def _load_sql(filename: str) -> str:
 SCHEMA_SQL = _load_sql("schema.sql")
 HISTORY_SELECT_SQL = _load_sql("history_select.sql").strip()
 
-PRIZE_FIELDS = ("id", "rank", "name", "count", "sort_order")
+from .common import PRIZE_FIELDS, normalize_prize, compute_prize_diff
 
 def sqlite_connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(SQLITE_PATH))
+    conn = sqlite3.connect(str(SQLITE_PATH), timeout=10.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 def init_sqlite(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[str, Any]] = None):
@@ -69,20 +70,11 @@ def save_config_db(config: Dict[str, Any]):
         )
         conn.commit()
 
-def _normalize_prize(row: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "id": row["id"],
-        "rank": row["rank"],
-        "name": row.get("name") or "",
-        "count": int(row["count"]),
-        "sort_order": int(row.get("sort_order") or 0),
-    }
-
 def load_prizes() -> List[Dict[str, Any]]:
     with sqlite_connect() as conn:
         fields = ", ".join(PRIZE_FIELDS)
         rows = conn.execute(f"SELECT {fields} FROM prizes ORDER BY sort_order ASC, id ASC").fetchall()
-        return [_normalize_prize(dict(r)) for r in rows]
+        return [normalize_prize(dict(r)) for r in rows]
 
 def load_history() -> List[Dict[str, Any]]:
     with sqlite_connect() as conn:
@@ -90,9 +82,7 @@ def load_history() -> List[Dict[str, Any]]:
         return [dict(r) for r in rows]
 
 def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]):
-    existing_ids = {p["id"] for p in current_prizes}
-    incoming_ids = {p["id"] for p in prizes if p.get("id") is not None}
-    delete_ids = list(existing_ids - incoming_ids)
+    existing_ids, delete_ids = compute_prize_diff(prizes, current_prizes)
 
     with sqlite_connect() as conn:
         if delete_ids:
@@ -109,6 +99,7 @@ def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any
                     (p["rank"], p.get("name", ""), p["count"], order),
                 )
         conn.commit()
+
 
 def ensure_prize_exists(conn: sqlite3.Connection, prize_id: int, current_prizes: List[Dict[str, Any]]):
     """Supabase -> SQLite 중도 전환 시 FK 무결성을 위해 해당 등수를 SQLite에도 보장"""

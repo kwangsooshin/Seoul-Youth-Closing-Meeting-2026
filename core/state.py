@@ -1,3 +1,4 @@
+import asyncio
 import time
 from typing import List, Dict, Any, Optional
 from core.config import load_config
@@ -10,6 +11,7 @@ SESSION_TIMEOUT_SECONDS = 3 * 3600
 class LotteryState:
     """인메모리 추첨 세션 상태 및 통계 관리"""
     def __init__(self):
+        self.lock = asyncio.Lock()
         self.config: Dict[str, Any] = load_config()
         self.prizes: List[Dict[str, Any]] = []
         self.history: List[Dict[str, Any]] = []
@@ -43,6 +45,27 @@ class LotteryState:
         self.session_started_at = None
         self.session_last_active_at = None
 
+    def reset_state(self):
+        """추첨 이력 및 진행 상태 전체 초기화"""
+        self.history = []
+        self.pending_draw = None
+        self.stop_session()
+        self.refresh_selected_prize()
+
+    def refresh_selected_prize(self):
+        """선택된 등수가 없거나 유효하지 않으면 미완료 등수 또는 첫 번째 등수로 기본 설정"""
+        if not self.prizes:
+            self.selected_prize_id = None
+            return
+        valid_ids = {p["id"] for p in self.prizes}
+        if self.selected_prize_id not in valid_ids:
+            used_by_prize: Dict[int, int] = {}
+            for h in self.history:
+                if h.get("status") == "CONFIRMED":
+                    used_by_prize[h["prize_id"]] = used_by_prize.get(h["prize_id"], 0) + 1
+            next_p = next((p for p in self.prizes if used_by_prize.get(p["id"], 0) < p["count"]), None)
+            self.selected_prize_id = next_p["id"] if next_p else self.prizes[0]["id"]
+
     def sync_from_db(self):
         """DB에서 앱 설정, 등수 목록 및 추첨 이력 동기화"""
         try:
@@ -51,18 +74,7 @@ class LotteryState:
             self.history = load_history()
             info = get_db_info(len(self.history))
             print(f"[SUCCESS] {info['name']}에서 설정, 등수 {len(self.prizes)}개, 이력 {len(self.history)}건을 불러왔습니다.")
-
-            # 선택된 등수가 없거나 유효하지 않으면 미완료 등수 또는 첫 번째 등수로 기본 설정
-            if self.prizes:
-                valid_ids = {p["id"] for p in self.prizes}
-                if self.selected_prize_id not in valid_ids:
-                    used_by_prize: Dict[int, int] = {}
-                    for h in self.history:
-                        if h.get("status") == "CONFIRMED":
-                            used_by_prize[h["prize_id"]] = used_by_prize.get(h["prize_id"], 0) + 1
-                    # 완료되지 않은 첫 번째 등수 찾기
-                    next_p = next((p for p in self.prizes if used_by_prize.get(p["id"], 0) < p["count"]), None)
-                    self.selected_prize_id = next_p["id"] if next_p else self.prizes[0]["id"]
+            self.refresh_selected_prize()
         except Exception as e:
             print(f"[WARN] DB 조회 실패: {e}")
 
@@ -103,6 +115,17 @@ class LotteryState:
                 "is_completed": len(confirmed) >= p["count"]
             })
 
+        # 클라이언트에 노출할 pending_draw 사본 (내부 타임스탬프 등 제외 가능하나 호환성 유지)
+        public_pending = None
+        if self.pending_draw:
+            public_pending = {
+                "number": self.pending_draw["number"],
+                "prize_id": self.pending_draw["prize_id"],
+                "prize_rank": self.pending_draw["prize_rank"],
+                "prize_name": self.pending_draw["prize_name"],
+                "status": self.pending_draw["status"],
+            }
+
         return {
             "config": {**self.config, "prizes": self.prizes},
             "history": self.history,
@@ -111,7 +134,7 @@ class LotteryState:
             "used_numbers": list(used_numbers),
             "total_tickets": total_range,
             "remaining_pool_count": remaining_pool_count,
-            "current_pending_draw": self.pending_draw,
+            "current_pending_draw": public_pending,
             "is_lottery_started": self.is_started,
             "session_started_at": self.session_started_at,
             "session_last_active_at": self.session_last_active_at,
@@ -123,3 +146,4 @@ class LotteryState:
 
 
 state = LotteryState()
+

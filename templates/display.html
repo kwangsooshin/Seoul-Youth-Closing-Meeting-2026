@@ -1291,14 +1291,6 @@
       }
     }
 
-    function toggleYtWidget() {
-      const widget = document.getElementById('ytBgmWidget');
-      const btn = document.getElementById('ytMinBtn');
-      if (!widget || !btn) return;
-      widget.classList.toggle('minimized');
-      btn.textContent = widget.classList.contains('minimized') ? '+' : '−';
-    }
-
     // --- BGM 오디오 덕킹(Audio Ducking) 효과 ---
     // 기본 BGM 30%, 롤링 시 10%, 팡파레/효과음 시 5%로 줄였다가 부드럽게 복원
     let normalBgmVolume = 30; // 기본 BGM 볼륨 30%
@@ -1573,29 +1565,6 @@
       window.addEventListener(evt, instantAudioTrigger, { once: true, passive: true });
     });
 
-    // 사운드 정상 확인용 경쾌한 징글 ("띠링~")
-    function playTestJingle() {
-      if (!isSfxPlayable()) return;
-      try {
-        const ctx = getAudioContext();
-        const now = ctx.currentTime;
-        [523.25, 659.25, 783.99].forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now + idx * 0.1);
-          gain.gain.setValueAtTime(0.35, now + idx * 0.1);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.35);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + idx * 0.1);
-          osc.stop(now + idx * 0.1 + 0.35);
-        });
-      } catch (e) {
-        console.warn('오디오 재생 실패:', e);
-      }
-    }
-
     // 롤링 틱 사운드 (선명하고 긴장감 넘치는 슬롯머신 틱!)
     function playTickSound() {
       if (!isSfxPlayable()) return;
@@ -1800,7 +1769,7 @@
 
       slotBox.className = 'slot-machine-container is-rolling';
       numDisplay.className = 'lucky-number-display';
-      statusMsg.innerHTML = '<span style="color: var(--primary-cyan); font-size:1.5rem;">🎲 두근두근 추첨 번호가 돌아가고 있습니다...</span>';
+      statusMsg.innerHTML = '<span style="color: var(--primary-blue); font-size:1.5rem;">🎲 두근두근 추첨 번호가 돌아가고 있습니다...</span>';
 
       const durationMs = 3800; // 3.8초 롤링
       const startTime = Date.now();
@@ -1820,7 +1789,7 @@
           numDisplay.textContent = targetNum;
           slotBox.className = 'slot-machine-container is-winner';
           numDisplay.className = 'lucky-number-display winner-text';
-          statusMsg.innerHTML = `🎲 당첨 번호 <strong style="color:var(--accent-gold); font-size:1.8rem; margin: 0 8px;">#${targetNum}</strong> 번이 나왔습니다! 호명 중입니다!`;
+          statusMsg.innerHTML = `🎲 당첨 번호 <strong style="color:var(--accent-orange-dark); font-size:1.8rem; margin: 0 8px;">#${Number(targetNum)}</strong> 번이 나왔습니다! 호명 중입니다!`;
           playRevealSound();
           triggerCelebrationConfetti();
 
@@ -1909,10 +1878,6 @@
 
       // 4. 진행 중인 추첨이 없는데 롤링 중도 아닌 경우 배너 초기화/유지
       if (!isCurrentlyRolling && !state.current_pending_draw) {
-        const slotBox = document.getElementById('slotBox');
-        const numDisplay = document.getElementById('luckyNumberDisplay');
-        const statusMsg = document.getElementById('drawStatusMsg');
-
         // 관리자가 선택한 등수 우선, 없으면 아직 완료 안 된 첫 번째 등수 찾기
         let targetPrize = null;
         if (state.selected_prize_id) {
@@ -1996,7 +1961,9 @@
           const item = msg.data;
           document.getElementById('currentPrizeRank').textContent = item.prize_rank;
           document.getElementById('currentPrizeName').textContent = item.prize_name || '현장 추첨';
-          startRollingEffect(item.number);
+          const minNum = (currentState && currentState.config) ? currentState.config.min_number : 1;
+          const maxNum = (currentState && currentState.config) ? currentState.config.max_number : 200;
+          startRollingEffect(item.number, minNum, maxNum);
         } else if (msg.type === 'DRAW_CONFIRMED') {
           // 관리자가 당첨 확정 클릭!
           const item = msg.item;
@@ -2103,7 +2070,7 @@
     // 초기 실행
     window.addEventListener('DOMContentLoaded', () => {
       connectWebSocket();
-      updateSoundStatusBadge(true);
+      updateSoundStatusBadge();
     });
   </script>
 </body>

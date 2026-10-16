@@ -1,67 +1,70 @@
+import asyncio
 import secrets
-from fastapi import APIRouter, HTTPException, Request
+import time
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.state import state
 from core.websocket import manager
-from core.auth import is_authenticated_admin
+from core.auth import require_admin
 from db import save_record, delete_last_record, clear_records
 
-router = APIRouter(prefix="/api/draw", tags=["Draw"])
+router = APIRouter(
+    prefix="/api/draw",
+    tags=["Draw"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class LotterySessionRequest(BaseModel):
     started: bool
 
 
+class PrizeIdRequest(BaseModel):
+    prize_id: int
+
+
 @router.post("/session")
-async def set_lottery_session(req: LotterySessionRequest, request: Request):
+async def set_lottery_session(req: LotterySessionRequest):
     """현장 추첨 이벤트 시작 및 대기 모드 전환 (세션 무조작 안전 만료는 백그라운드 스케줄러가 관리)"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
+    async with state.lock:
+        if req.started:
+            state.start_session()
+            print("[SESSION] 추첨 세션 시작: 대기화면 해제")
+        else:
+            state.stop_session()
+            print("[SESSION] 추첨 세션 중지: 대기화면 표시 전환")
 
-    if req.started:
-        state.start_session()
-        print("[SESSION] 추첨 세션 시작: 대기화면 해제")
-    else:
-        state.stop_session()
-        print("[SESSION] 추첨 세션 중지: 대기화면 표시 전환")
+        stats = state.get_stats()
+        started = state.is_started
+        started_at = state.session_started_at
+        last_active_at = state.session_last_active_at
 
-    stats = state.get_stats()
     await manager.broadcast({
         "type": "LOTTERY_SESSION_STATE",
-        "started": state.is_started,
+        "started": started,
         "auto_timeout": False,
         "data": stats
     })
     return {
         "success": True,
-        "started": state.is_started,
-        "session_started_at": state.session_started_at,
-        "session_last_active_at": state.session_last_active_at
+        "started": started,
+        "session_started_at": started_at,
+        "session_last_active_at": last_active_at
     }
 
 
-class DrawStartRequest(BaseModel):
-    prize_id: int
-
-
-class PrizeSelectRequest(BaseModel):
-    prize_id: int
-
-
 @router.post("/select-prize")
-async def select_prize(req: PrizeSelectRequest, request: Request):
+async def select_prize(req: PrizeIdRequest):
     """관리자 콘솔에서 추첨할 등수 선택 변경 시 디스플레이와 실시간 동기화"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
+    async with state.lock:
+        prize = state.find_prize(req.prize_id)
+        if not prize:
+            raise HTTPException(status_code=400, detail="존재하지 않는 등수입니다.")
 
-    prize = state.find_prize(req.prize_id)
-    if not prize:
-        raise HTTPException(status_code=400, detail="존재하지 않는 등수입니다.")
+        state.selected_prize_id = req.prize_id
+        stats = state.get_stats()
 
-    state.selected_prize_id = req.prize_id
-    stats = state.get_stats()
     await manager.broadcast({
         "type": "PRIZE_TARGET_CHANGED",
         "prize_id": prize["id"],
@@ -78,68 +81,85 @@ async def select_prize(req: PrizeSelectRequest, request: Request):
 
 
 @router.post("/start")
-async def start_draw(req: DrawStartRequest, request: Request):
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
+async def start_draw(req: PrizeIdRequest):
+    async with state.lock:
+        if not state.is_started:
+            raise HTTPException(status_code=400, detail="현재 대기화면 상태입니다. 먼저 '대기화면 해제'를 해주세요.")
 
-    if not state.is_started:
-        raise HTTPException(status_code=400, detail="현재 대기화면 상태입니다. 먼저 '대기화면 해제'를 해주세요.")
+        if state.pending_draw is not None:
+            raise HTTPException(status_code=400, detail="이미 진행 중인 추첨 번호가 있습니다. 확정 또는 패스를 먼저 처리하세요.")
 
-    if state.pending_draw is not None:
-        raise HTTPException(status_code=400, detail="이미 진행 중인 추첨 번호가 있습니다. 확정 또는 패스를 먼저 처리하세요.")
+        prize = state.find_prize(req.prize_id)
+        if not prize:
+            raise HTTPException(status_code=400, detail="존재하지 않는 등수입니다. 새로고침 후 다시 시도하세요.")
 
-    prize = state.find_prize(req.prize_id)
-    if not prize:
-        raise HTTPException(status_code=400, detail="존재하지 않는 등수입니다. 새로고침 후 다시 시도하세요.")
+        state.selected_prize_id = req.prize_id
 
-    state.selected_prize_id = req.prize_id
+        used_numbers = state.get_used_numbers()
+        min_num = state.config["min_number"]
+        max_num = state.config["max_number"]
 
-    used_numbers = state.get_used_numbers()
-    min_num = state.config["min_number"]
-    max_num = state.config["max_number"]
+        available_numbers = [n for n in range(min_num, max_num + 1) if n not in used_numbers]
 
-    available_numbers = [n for n in range(min_num, max_num + 1) if n not in used_numbers]
+        if not available_numbers:
+            raise HTTPException(status_code=400, detail="추첨 가능한 남은 번호가 없습니다!")
 
-    if not available_numbers:
-        raise HTTPException(status_code=400, detail="추첨 가능한 남은 번호가 없습니다!")
-
-    picked_number = secrets.choice(available_numbers)
-    state.pending_draw = {
-        "number": picked_number,
-        "prize_id": prize["id"],
-        "prize_rank": prize["rank"],
-        "prize_name": prize["name"],
-        "status": "DRAWING"
-    }
+        picked_number = secrets.choice(available_numbers)
+        state.pending_draw = {
+            "number": picked_number,
+            "prize_id": prize["id"],
+            "prize_rank": prize["rank"],
+            "prize_name": prize["name"],
+            "status": "DRAWING",
+            "drawn_at": time.time(),
+            "rolling_completed": False,
+        }
+        payload = {
+            "number": picked_number,
+            "prize_id": prize["id"],
+            "prize_rank": prize["rank"],
+            "prize_name": prize["name"],
+            "status": "DRAWING",
+        }
 
     # 브로드캐스트: 추첨 롤링 시작 이벤트
     await manager.broadcast({
         "type": "DRAW_ROLLING_START",
-        "data": state.pending_draw
+        "data": payload
     })
 
-    return {"success": True, "picked_number": picked_number, "data": state.pending_draw}
+    return {"success": True, "picked_number": picked_number, "data": payload}
 
 
-async def _finalize_pending_draw(status: str, event_type: str):
+async def _finalize_pending_draw(status: str, event_type: str, empty_error_msg: str):
     """진행 중인 추첨을 확정(CONFIRMED) 또는 패스(PASSED)로 기록"""
-    record = {
-        "prize_id": state.pending_draw["prize_id"],
-        "drawn_number": state.pending_draw["number"],
-        "status": status
-    }
+    async with state.lock:
+        if not state.pending_draw:
+            raise HTTPException(status_code=400, detail=empty_error_msg)
 
-    # DB 저장 (Supabase 우선, 실패/미연결 시 로컬 SQLite 자동 저장) -> prizes JOIN 결과 반환
-    try:
-        record = save_record(record, state.prizes)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"기록 저장 실패: {e}")
+        record_input = {
+            "prize_id": state.pending_draw["prize_id"],
+            "drawn_number": state.pending_draw["number"],
+            "status": status
+        }
 
-    state.history.append(record)
-    item = dict(state.pending_draw)
-    state.pending_draw = None
+        try:
+            record = await asyncio.to_thread(save_record, record_input, state.prizes)
+        except Exception as e:
+            print(f"[ERROR] 추첨 기록 저장 실패: {e}")
+            raise HTTPException(status_code=500, detail="추첨 기록을 저장하는 중 서버 오류가 발생했습니다.")
 
-    stats = state.get_stats()
+        state.history.append(record)
+        item = {
+            "number": state.pending_draw["number"],
+            "prize_id": state.pending_draw["prize_id"],
+            "prize_rank": state.pending_draw["prize_rank"],
+            "prize_name": state.pending_draw["prize_name"],
+            "status": state.pending_draw["status"],
+        }
+        state.pending_draw = None
+        stats = state.get_stats()
+
     await manager.broadcast({
         "type": event_type,
         "item": item,
@@ -149,50 +169,36 @@ async def _finalize_pending_draw(status: str, event_type: str):
 
 
 @router.post("/confirm")
-async def confirm_draw(request: Request):
+async def confirm_draw():
     """현재 번호 당첨 확정"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
-
-    if not state.pending_draw:
-        raise HTTPException(status_code=400, detail="확정할 추첨 번호가 없습니다.")
-
-    return await _finalize_pending_draw("CONFIRMED", "DRAW_CONFIRMED")
+    return await _finalize_pending_draw("CONFIRMED", "DRAW_CONFIRMED", "확정할 추첨 번호가 없습니다.")
 
 
 @router.post("/pass")
-async def pass_draw(request: Request):
+async def pass_draw():
     """호명 시 부재자 패스 처리 (넘어가기)"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
-
-    if not state.pending_draw:
-        raise HTTPException(status_code=400, detail="패스할 추첨 번호가 없습니다.")
-
-    return await _finalize_pending_draw("PASSED", "DRAW_PASSED")
+    return await _finalize_pending_draw("PASSED", "DRAW_PASSED", "패스할 추첨 번호가 없습니다.")
 
 
 @router.post("/cancel-last")
-async def cancel_last_draw(request: Request):
+async def cancel_last_draw():
     """방금 확정/패스된 가장 최근 추첨 건 취소 및 롤백"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
+    async with state.lock:
+        if not state.is_started:
+            raise HTTPException(status_code=400, detail="현재 대기화면 상태에서는 취소할 수 없습니다. 먼저 '대기화면 해제'를 해주세요.")
 
-    if not state.is_started:
-        raise HTTPException(status_code=400, detail="현재 대기화면 상태에서는 취소할 수 없습니다. 먼저 '대기화면 해제'를 해주세요.")
+        if state.pending_draw is not None:
+            raise HTTPException(status_code=400, detail="진행 중인 추첨이 있습니다. 먼저 확정 또는 패스를 처리하세요.")
 
-    if state.pending_draw is not None:
-        raise HTTPException(status_code=400, detail="진행 중인 추첨이 있습니다. 먼저 확정 또는 패스를 처리하세요.")
+        if not state.history:
+            raise HTTPException(status_code=400, detail="취소할 수 있는 최근 추첨 내역이 없습니다.")
 
-    if not state.history:
-        raise HTTPException(status_code=400, detail="취소할 수 있는 최근 추첨 내역이 없습니다.")
+        deleted_id = await asyncio.to_thread(delete_last_record)
+        if not deleted_id:
+            raise HTTPException(status_code=500, detail="DB에서 최근 내역을 삭제하지 못했습니다.")
 
-    deleted_id = delete_last_record()
-    if not deleted_id:
-        raise HTTPException(status_code=500, detail="DB에서 최근 내역을 삭제하지 못했습니다.")
-
-    removed_item = state.history.pop()
-    stats = state.get_stats()
+        removed_item = state.history.pop()
+        stats = state.get_stats()
 
     await manager.broadcast({
         "type": "DRAW_CANCELLED",
@@ -204,22 +210,18 @@ async def cancel_last_draw(request: Request):
 
 
 @router.post("/reset")
-async def reset_draw(request: Request):
+async def reset_draw():
     """추첨 이력 전체 초기화"""
-    if not is_authenticated_admin(request):
-        raise HTTPException(status_code=401, detail="인증 실패 (유효한 관리자 세션 토큰이 필요합니다)")
+    async with state.lock:
+        await asyncio.to_thread(clear_records)
+        state.reset_state()
+        stats = state.get_stats()
 
-    # DB 초기화 (Supabase 및 로컬 SQLite 모두 초기화)
-    clear_records()
-
-    state.history = []
-    state.pending_draw = None
-    state.is_started = False
-
-    stats = state.get_stats()
     await manager.broadcast({
         "type": "DRAW_RESET",
         "data": stats
     })
 
     return {"success": True}
+
+

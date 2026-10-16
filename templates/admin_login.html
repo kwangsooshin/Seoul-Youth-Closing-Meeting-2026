@@ -427,8 +427,8 @@
         const data = await res.json().catch(() => ({}));
 
         if (res.ok && data.success) {
-          // 세션스토리지에도 보관 (API 직접 호출 시 호환성 유지)
-          sessionStorage.setItem('admin_pwd', password);
+          // 이전 버전에서 남아있을 수 있는 평문 비밀번호 캐시 제거 및 세션 토큰만 보관
+          sessionStorage.removeItem('admin_pwd');
           if (data.token) {
             sessionStorage.setItem('admin_token', data.token);
           }

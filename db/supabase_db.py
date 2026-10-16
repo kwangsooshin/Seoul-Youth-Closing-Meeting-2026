@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from core.config import SCHEMA_NAME
+from .common import PRIZE_FIELDS, normalize_prize, compute_prize_diff
 
-PRIZE_FIELDS = ("id", "rank", "name", "count", "sort_order")
 SUPABASE_HISTORY_SELECT = "id, prize_id, drawn_number, status, created_at, prizes(rank, name)"
 
 def get_schema() -> str:
@@ -12,15 +12,6 @@ def get_schema() -> str:
 def table(client, table_name: str):
     """현재 스키마(dev 또는 service)의 테이블 쿼리 빌더 반환"""
     return client.schema(get_schema()).table(table_name)
-
-def _normalize_prize(row: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "id": row["id"],
-        "rank": row["rank"],
-        "name": row.get("name") or "",
-        "count": int(row["count"]),
-        "sort_order": int(row.get("sort_order") or 0),
-    }
 
 def _flatten_history(row: Dict[str, Any]) -> Dict[str, Any]:
     prize = row.get("prizes") or {}
@@ -67,16 +58,14 @@ def save_config_db(client, config: Dict[str, Any]):
 
 def load_prizes(client) -> List[Dict[str, Any]]:
     res = table(client, "prizes").select(",".join(PRIZE_FIELDS)).order("sort_order").order("id").execute()
-    return [_normalize_prize(r) for r in (res.data or [])]
+    return [normalize_prize(r) for r in (res.data or [])]
 
 def load_history(client) -> List[Dict[str, Any]]:
     res = table(client, "draw_history").select(SUPABASE_HISTORY_SELECT).order("id", desc=False).execute()
     return [_flatten_history(r) for r in (res.data or [])]
 
 def save_prizes(client, prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]):
-    existing_ids = {p["id"] for p in current_prizes}
-    incoming_ids = {p["id"] for p in prizes if p.get("id") is not None}
-    delete_ids = list(existing_ids - incoming_ids)
+    existing_ids, delete_ids = compute_prize_diff(prizes, current_prizes)
 
     if delete_ids:
         table(client, "prizes").delete().in_("id", delete_ids).execute()
@@ -87,6 +76,7 @@ def save_prizes(client, prizes: List[Dict[str, Any]], current_prizes: List[Dict[
             table(client, "prizes").update(payload).eq("id", p["id"]).execute()
         else:
             table(client, "prizes").insert(payload).execute()
+
 
 def save_record(client, record: dict) -> Optional[dict]:
     res = table(client, "draw_history").insert(record).execute()

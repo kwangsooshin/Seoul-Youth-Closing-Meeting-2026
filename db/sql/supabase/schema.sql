@@ -87,6 +87,10 @@ CREATE TABLE IF NOT EXISTS service.access_logs (
 
 -- ------------------------------------------------------------------------------
 -- 4. API 역할(service_role, anon, authenticated) 접근 및 시퀀스 권한 부여
+-- [보안 권장사항]
+-- 백엔드 서버(.env의 SUPABASE_KEY)에 'service_role' 키를 사용하는 경우,
+-- 외부에서 anon 키로 DB에 직접 접근하지 못하도록 아래 GRANT 문에서 'anon, authenticated'를
+-- 제외하고 'service_role'에만 권한을 부여하는 것을 권장합니다.
 -- ------------------------------------------------------------------------------
 -- dev 스키마 권한
 GRANT USAGE ON SCHEMA dev TO anon, authenticated, service_role;
@@ -101,3 +105,4 @@ GRANT ALL ON ALL TABLES IN SCHEMA service TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA service TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA service GRANT ALL ON TABLES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA service GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+

@@ -523,28 +523,6 @@
       margin: 4px;
     }
 
-    /* 로그인 모달 */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-    }
-
-    .modal-box {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 32px;
-      width: 90%;
-      max-width: 400px;
-      text-align: center;
-    }
-
     /* 감사 로그 필터 세그먼트 버튼 */
     .audit-filter-bar {
       display: flex;
@@ -907,7 +885,7 @@
 
         <!-- 2단계: 번호 나온 후 확정(청색) 또는 패스 선택 버튼 -->
         <div class="action-btn-group" id="confirmPassGroup" style="display: none;">
-          <button class="btn btn-blue" id="btnConfirm" onclick="triggerConfirm()">
+          <button class="btn btn-primary" id="btnConfirm" onclick="triggerConfirm()">
             ✅ 당첨 확정
           </button>
           <button class="btn btn-secondary" id="btnPass" onclick="triggerPass()">
@@ -1144,7 +1122,7 @@
     async function handleLogout() {
       if (!confirm('관리자 세션을 종료하고 로그아웃하시겠습니까?')) return;
       try {
-        await fetch('/api/admin/logout', { method: 'POST' });
+        await adminFetch('/api/admin/logout', { method: 'POST' });
       } catch (e) {}
       sessionStorage.removeItem('admin_token');
       sessionStorage.removeItem('admin_pwd');
@@ -1152,9 +1130,10 @@
       window.location.href = '/admin/login';
     }
 
-    // --- 관리자 API 공통 요청 헬퍼 (Authorization: Bearer 세션 토큰 자동 첨부) ---
+    // --- 관리자 API 공통 요청 헬퍼 (Authorization: Bearer 세션 토큰 및 CSRF 방어 헤더 자동 첨부) ---
     async function adminFetch(url, options = {}) {
       options.headers = options.headers || {};
+      options.headers['X-Requested-With'] = 'XMLHttpRequest';
       if (adminToken) {
         options.headers['Authorization'] = `Bearer ${adminToken}`;
       }
@@ -1666,9 +1645,9 @@
             <button type="button" class="order-btn" title="아래로 이동" onclick="movePrizeRowDown(this)">▼</button>
           </div>
         </div>
-        <input type="text" value="${p.rank || ''}" class="row-rank" placeholder="예: 1등" draggable="false">
-        <input type="number" min="1" value="${p.count || 1}" class="row-count" placeholder="인원" draggable="false">
-        <input type="text" value="${p.name || ''}" class="row-name" placeholder="상품명 (예: 아이패드)" draggable="false">
+        <input type="text" value="${escapeHtml(p.rank || '')}" class="row-rank" placeholder="예: 1등" draggable="false">
+        <input type="number" min="1" value="${Number(p.count) || 1}" class="row-count" placeholder="인원" draggable="false">
+        <input type="text" value="${escapeHtml(p.name || '')}" class="row-name" placeholder="상품명 (예: 아이패드)" draggable="false">
         <button type="button" class="btn btn-danger" style="padding: 8px 10px;" onclick="this.closest('.prize-setting-row').remove()" title="등수 삭제">✕</button>
       `;
 
@@ -1957,17 +1936,7 @@
       const now = Date.now();
       if (now - lastAdminPingTime > 5 * 60 * 1000) {
         lastAdminPingTime = now;
-        if (adminToken) {
-          fetch('/api/admin/ping', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${adminToken}` }
-          }).then(res => {
-            if (res.status === 401) {
-              sessionStorage.removeItem('admin_token');
-              window.location.href = '/admin/login';
-            }
-          }).catch(() => {});
-        }
+        adminFetch('/api/admin/ping', { method: 'POST' }).catch(() => {});
       }
     }
     window.addEventListener('click', reportAdminActive, { passive: true });
@@ -2133,10 +2102,6 @@
       } catch (err) {
         console.error('사운드 원격 제어 요청 오류:', err);
       }
-    }
-
-    function toggleBgmMute() {
-      toggleMasterMute();
     }
 
     let volDebounce = null;
@@ -2419,7 +2384,7 @@
         updateAuditCounts();
         renderAuditTable();
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">오류가 발생했습니다: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">오류가 발생했습니다: ${escapeHtml(err.message)}</td></tr>`;
         if (pageInfo) pageInfo.textContent = '로그 로드 실패';
       }
     }

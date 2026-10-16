@@ -1,8 +1,10 @@
+import time
+from typing import Dict, Tuple
 from fastapi import APIRouter, Request, BackgroundTasks, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from core.config import BASE_DIR
-from core.auth import verify_admin_token, revoke_admin_token
+from core.auth import verify_admin_token, revoke_admin_token, clear_admin_cookie
 from core.net import get_client_ip
 from db import save_access_log
 
@@ -10,11 +12,28 @@ router = APIRouter(tags=["Pages"])
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+# 감사 로그(Audit Log) 도배/DB 부하 방지를 위한 단기 쿨다운 캐시: (ip, page_type) -> last_logged_ts
+_audit_cooldown_cache: Dict[Tuple[str, str], float] = {}
+AUDIT_COOLDOWN_SECONDS = 3.0
+
 
 def record_audit(request: Request, page_type: str):
-    """페이지 접속 감사 로그(Audit Log)를 백그라운드로 안전하게 DB 저장"""
+    """페이지 접속 감사 로그(Audit Log)를 백그라운드로 안전하게 DB 저장 (단기 중복 도배 방지 포함)"""
     try:
+        now = time.time()
         ip = get_client_ip(request)[:45]
+        key = (ip, page_type)
+
+        if len(_audit_cooldown_cache) > 500:
+            stale = [k for k, ts in _audit_cooldown_cache.items() if now - ts > 60.0]
+            for k in stale:
+                _audit_cooldown_cache.pop(k, None)
+
+        last_ts = _audit_cooldown_cache.get(key, 0.0)
+        if now - last_ts < AUDIT_COOLDOWN_SECONDS:
+            return
+        _audit_cooldown_cache[key] = now
+
         path = request.url.path[:255]
         user_agent = request.headers.get("user-agent", "")[:255]
         save_access_log(ip=ip, page_type=page_type, path=path, user_agent=user_agent)
@@ -57,23 +76,18 @@ async def admin_page(request: Request, background_tasks: BackgroundTasks):
 
 @router.get("/admin/logout")
 async def admin_logout_page(request: Request):
-    """관리자 로그아웃 처리 후 로그인 페이지로 이동"""
-    cookie_token = request.cookies.get("admin_token")
-    if cookie_token:
-        revoke_admin_token(cookie_token)
-    response = RedirectResponse(url="/admin/login", status_code=303)
-    is_https = (
-        request.url.scheme == "https"
-        or request.headers.get("x-forwarded-proto") == "https"
-    )
-    response.delete_cookie(
-        key="admin_token",
-        path="/",
-        httponly=True,
-        samesite="lax",
-        secure=is_https
-    )
-    return response
+    """관리자 로그아웃 처리 후 로그인 페이지로 이동 (외부 사이트 이미지 태그 등을 통한 강제 로그아웃 CSRF 방어)"""
+    sec_fetch_site = request.headers.get("sec-fetch-site", "").lower()
+    if sec_fetch_site not in ("cross-site",):
+        cookie_token = request.cookies.get("admin_token")
+        if cookie_token:
+            revoke_admin_token(cookie_token)
+        response = RedirectResponse(url="/admin/login", status_code=303)
+        clear_admin_cookie(request, response)
+        return response
+    return RedirectResponse(url="/admin/login", status_code=303)
+
+
 
 
 @router.api_route("/healthz", methods=["GET", "HEAD"])
