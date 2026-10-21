@@ -81,24 +81,66 @@ def load_history() -> List[Dict[str, Any]]:
         rows = conn.execute(f"{HISTORY_SELECT_SQL} ORDER BY h.id ASC").fetchall()
         return [dict(r) for r in rows]
 
-def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]):
+def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     existing_ids, delete_ids = compute_prize_diff(prizes, current_prizes)
+    existing_map = {p["id"]: p for p in current_prizes if p.get("id") is not None}
+    result_prizes: List[Dict[str, Any]] = []
 
     with sqlite_connect() as conn:
         if delete_ids:
             conn.executemany("DELETE FROM prizes WHERE id = ?", [(i,) for i in delete_ids])
         for order, p in enumerate(prizes):
-            if p.get("id") is not None and p["id"] in existing_ids:
+            rank = p["rank"]
+            name = p.get("name", "")
+            count = int(p["count"])
+            pid = p.get("id")
+
+            if pid is not None and pid in existing_ids:
+                cur = existing_map[pid]
+                if (
+                    cur.get("rank") != rank
+                    or (cur.get("name") or "") != name
+                    or int(cur.get("count", 0)) != count
+                    or int(cur.get("sort_order", -1)) != order
+                ):
+                    conn.execute(
+                        "UPDATE prizes SET rank = ?, name = ?, count = ?, sort_order = ? WHERE id = ?",
+                        (rank, name, count, order, pid),
+                    )
+                result_prizes.append(normalize_prize({
+                    "id": pid,
+                    "rank": rank,
+                    "name": name,
+                    "count": count,
+                    "sort_order": order,
+                }))
+            elif pid is not None:
                 conn.execute(
-                    "UPDATE prizes SET rank = ?, name = ?, count = ?, sort_order = ? WHERE id = ?",
-                    (p["rank"], p.get("name", ""), p["count"], order, p["id"]),
+                    "INSERT INTO prizes (id, rank, name, count, sort_order) VALUES (?, ?, ?, ?, ?)",
+                    (pid, rank, name, count, order),
                 )
+                result_prizes.append(normalize_prize({
+                    "id": pid,
+                    "rank": rank,
+                    "name": name,
+                    "count": count,
+                    "sort_order": order,
+                }))
             else:
-                conn.execute(
+                cur_ins = conn.execute(
                     "INSERT INTO prizes (rank, name, count, sort_order) VALUES (?, ?, ?, ?)",
-                    (p["rank"], p.get("name", ""), p["count"], order),
+                    (rank, name, count, order),
                 )
+                result_prizes.append(normalize_prize({
+                    "id": cur_ins.lastrowid,
+                    "rank": rank,
+                    "name": name,
+                    "count": count,
+                    "sort_order": order,
+                }))
         conn.commit()
+
+    return result_prizes
 
 
 def ensure_prize_exists(conn: sqlite3.Connection, prize_id: int, current_prizes: List[Dict[str, Any]]):

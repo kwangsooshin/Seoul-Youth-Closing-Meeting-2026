@@ -22,8 +22,6 @@ from core.auth import (
 )
 from db import (
     save_prizes,
-    load_prizes,
-    load_history,
     save_app_config,
     load_access_logs,
     cleanup_old_access_logs,
@@ -159,6 +157,38 @@ class ConfigUpdateRequest(BaseModel):
     prizes: Optional[List[PrizeInput]] = None  # None이면 등수 설정은 변경하지 않음
 
 
+def _are_prizes_equal(incoming: list, current: list) -> bool:
+    """등수 목록의 실질적 변경 여부 확인 (변경 없을 시 DB I/O 생략)"""
+    if len(incoming) != len(current):
+        return False
+    for order, (inc, cur) in enumerate(zip(incoming, current)):
+        if (
+            inc.get("id") is None
+            or inc.get("id") != cur.get("id")
+            or inc.get("rank") != cur.get("rank")
+            or (inc.get("name") or "") != (cur.get("name") or "")
+            or int(inc.get("count", 0)) != int(cur.get("count", 0))
+            or int(cur.get("sort_order", order)) != order
+        ):
+            return False
+    return True
+
+
+def _sync_history_prize_labels():
+    """인메모리 추첨 이력 및 진행 중 항목에 변경된 등수명/상품명을 즉시 반영 (불필요한 DB 재조회 제거)"""
+    prize_map = {p["id"]: p for p in state.prizes if p.get("id") is not None}
+    for h in state.history:
+        matched = prize_map.get(h.get("prize_id"))
+        if matched:
+            h["prize_rank"] = matched["rank"]
+            h["prize_name"] = matched.get("name", "")
+    if state.pending_draw:
+        matched_pending = prize_map.get(state.pending_draw.get("prize_id"))
+        if matched_pending:
+            state.pending_draw["prize_rank"] = matched_pending["rank"]
+            state.pending_draw["prize_name"] = matched_pending.get("name", "")
+
+
 @router.post("/config", dependencies=[Depends(require_admin)])
 async def update_config(req: ConfigUpdateRequest):
     if req.min_number < 1:
@@ -174,7 +204,9 @@ async def update_config(req: ConfigUpdateRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
     async with state.lock:
-        # 등수(prizes) 변경 -> DB 반영
+        prizes_to_save = None
+
+        # 등수(prizes) 변경 검증
         if req.prizes is not None:
             if len(req.prizes) > 100:
                 raise HTTPException(status_code=400, detail="등수는 최대 100개까지만 설정할 수 있습니다.")
@@ -204,31 +236,34 @@ async def update_config(req: ConfigUpdateRequest):
                     detail=f"추첨 이력이 있는 등수는 삭제할 수 없습니다: {', '.join(blocked)} (이력 초기화 후 삭제하세요)",
                 )
 
-            try:
-                await asyncio.to_thread(save_prizes, prizes, state.prizes)
-                state.prizes = await asyncio.to_thread(load_prizes)
-                state.history = await asyncio.to_thread(load_history)  # 등수명 변경을 이력(JOIN)에 반영
-                state.refresh_selected_prize()
-            except Exception as e:
-                print(f"[ERROR] 등수 저장 실패: {e}")
-                raise HTTPException(status_code=500, detail="등수 설정을 저장하는 중 서버 오류가 발생했습니다.")
+            if not _are_prizes_equal(prizes, state.prizes):
+                prizes_to_save = prizes
 
-        # 번호 범위 / BGM 설정 DB(Supabase / SQLite)에 영구 저장
         new_config = {
             "min_number": req.min_number,
             "max_number": req.max_number,
             "bgm_youtube_url": clean_bgm_url,
         }
-        try:
-            await asyncio.to_thread(save_app_config, new_config)
-        except Exception as e:
-            print(f"[WARN] 설정 DB 저장 오류: {e}")
+        config_changed = new_config != state.config
+
+        # 변경된 항목만 DB 반영 (불필요한 재조회 제거)
+        if prizes_to_save is not None:
+            try:
+                state.prizes = await asyncio.to_thread(save_prizes, prizes_to_save, state.prizes)
+                _sync_history_prize_labels()
+                state.refresh_selected_prize()
+            except Exception as e:
+                print(f"[ERROR] 등수 저장 실패: {e}")
+                raise HTTPException(status_code=500, detail="등수 설정을 저장하는 중 서버 오류가 발생했습니다.")
+
+        if config_changed:
+            asyncio.create_task(asyncio.to_thread(save_app_config, new_config))
 
         state.config = new_config
         stats = state.get_stats()
 
     await manager.broadcast({"type": "CONFIG_UPDATED", "data": stats})
-    return {"success": True, "config": stats["config"]}
+    return {"success": True, "config": stats["config"], "data": stats}
 
 
 VALID_BGM_ACTIONS = {

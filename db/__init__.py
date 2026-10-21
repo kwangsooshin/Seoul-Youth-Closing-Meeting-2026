@@ -1,4 +1,5 @@
 import os
+import threading
 from typing import List, Dict, Any, Optional, Callable, TypeVar
 
 from core.config import DEFAULT_CONFIG, ZONE
@@ -84,18 +85,24 @@ def load_app_config(fallback_config: Optional[Dict[str, Any]] = None) -> Dict[st
     return default_cfg
 
 
+def _sync_sqlite_config_bg(config: Dict[str, Any]):
+    try:
+        sqlite_db.save_config_db(config)
+    except Exception as e:
+        print(f"[WARN] SQLite config 저장 실패: {e}")
+
+
 def save_app_config(config: Dict[str, Any]):
     """Supabase 우선 저장, 실패/오프라인 대비 SQLite에도 동기화 저장"""
     if _is_supabase_active():
         try:
             supabase_db.save_config_db(supabase_client, config)
+            threading.Thread(target=_sync_sqlite_config_bg, args=(config,), daemon=True).start()
+            return
         except Exception as e:
             print(f"[WARN] Supabase config 저장 실패 -> SQLite로 대체 저장: {e}")
 
-    try:
-        sqlite_db.save_config_db(config)
-    except Exception as e:
-        print(f"[WARN] SQLite config 저장 실패: {e}")
+    _sync_sqlite_config_bg(config)
 
 
 def load_prizes() -> List[Dict[str, Any]]:
@@ -114,18 +121,28 @@ def load_history() -> List[Dict[str, Any]]:
     )
 
 
-def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]):
+def _sync_sqlite_prizes_bg(saved_prizes: List[Dict[str, Any]]):
+    try:
+        sqlite_db.save_prizes(saved_prizes, sqlite_db.load_prizes())
+    except Exception as e:
+        print(f"[WARN] SQLite 등수 동기화 저장 실패: {e}")
+
+
+def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if _is_supabase_active():
         try:
-            supabase_db.save_prizes(supabase_client, prizes, current_prizes)
+            saved = supabase_db.save_prizes(supabase_client, prizes, current_prizes)
+            threading.Thread(target=_sync_sqlite_prizes_bg, args=(saved,), daemon=True).start()
+            return saved
         except Exception as e:
             print(f"[WARN] Supabase 등수 저장 실패 -> SQLite로 대체 저장: {e}")
 
-    # 로컬 SQLite에도 동기화 백업 저장
+    # 로컬 SQLite 저장
     try:
-        sqlite_db.save_prizes(prizes, sqlite_db.load_prizes())
+        return sqlite_db.save_prizes(prizes, current_prizes)
     except Exception as e:
-        print(f"[WARN] SQLite 등수 동기화 저장 실패: {e}")
+        print(f"[WARN] SQLite 등수 저장 실패: {e}")
+        raise
 
 
 def save_record(record: dict, current_prizes: List[Dict[str, Any]]) -> dict:

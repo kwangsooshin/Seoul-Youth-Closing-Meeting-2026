@@ -954,7 +954,7 @@
           <!-- 동적 생성 -->
         </div>
         <div style="margin-top: 20px; text-align: right;">
-          <button class="btn btn-orange" onclick="saveConfiguration()">💾 설정 저장하기</button>
+          <button class="btn btn-orange" id="btnSaveConfig" onclick="saveConfiguration()">💾 설정 저장하기</button>
         </div>
       </div>
     </section>
@@ -1766,6 +1766,12 @@
       }
 
       const youtubeUrl = document.getElementById('cfgYoutube') ? document.getElementById('cfgYoutube').value.trim() : '';
+      const btnSave = document.getElementById('btnSaveConfig');
+      const originalText = btnSave ? btnSave.innerHTML : '💾 설정 저장하기';
+      if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.innerHTML = '⏳ 저장 중...';
+      }
 
       try {
         const res = await adminFetch('/api/config', {
@@ -1779,6 +1785,11 @@
           })
         });
         if (res.ok) {
+          const data = await res.json();
+          if (data && data.data) {
+            currentState = data.data;
+            renderAdminState(currentState);
+          }
           alert('설정이 성공적으로 저장되었습니다!');
         } else {
           const err = await res.json();
@@ -1786,6 +1797,11 @@
         }
       } catch (err) {
         alert('요청 중 오류가 발생했습니다.');
+      } finally {
+        if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.innerHTML = originalText;
+        }
       }
     }
 
@@ -2152,6 +2168,11 @@
           })
         });
         if (res.ok) {
+          const data = await res.json();
+          if (data && data.data) {
+            currentState = data.data;
+            renderAdminState(currentState);
+          }
           alert('🎶 BGM 음원 링크가 성공적으로 저장되었으며 현장 스크린에 즉시 동기화되었습니다!');
         } else {
           const err = await res.json();

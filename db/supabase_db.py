@@ -64,18 +64,67 @@ def load_history(client) -> List[Dict[str, Any]]:
     res = table(client, "draw_history").select(SUPABASE_HISTORY_SELECT).order("id", desc=False).execute()
     return [_flatten_history(r) for r in (res.data or [])]
 
-def save_prizes(client, prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]):
+def save_prizes(
+    client,
+    prizes: List[Dict[str, Any]],
+    current_prizes: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     existing_ids, delete_ids = compute_prize_diff(prizes, current_prizes)
+    existing_map = {p["id"]: p for p in current_prizes if p.get("id") is not None}
 
     if delete_ids:
         table(client, "prizes").delete().in_("id", delete_ids).execute()
 
+    to_upsert: List[Dict[str, Any]] = []
+    to_insert: List[Dict[str, Any]] = []
+    result_prizes: List[Optional[Dict[str, Any]]] = [None] * len(prizes)
+    insert_indices: List[int] = []
+
     for order, p in enumerate(prizes):
-        payload = {"rank": p["rank"], "name": p.get("name", ""), "count": p["count"], "sort_order": order}
-        if p.get("id") is not None and p["id"] in existing_ids:
-            table(client, "prizes").update(payload).eq("id", p["id"]).execute()
+        rank = p["rank"]
+        name = p.get("name", "")
+        count = int(p["count"])
+        pid = p.get("id")
+
+        if pid is not None and pid in existing_ids:
+            cur = existing_map[pid]
+            row_data = {
+                "id": pid,
+                "rank": rank,
+                "name": name,
+                "count": count,
+                "sort_order": order,
+            }
+            if (
+                cur.get("rank") != rank
+                or (cur.get("name") or "") != name
+                or int(cur.get("count", 0)) != count
+                or int(cur.get("sort_order", -1)) != order
+            ):
+                to_upsert.append(row_data)
+            result_prizes[order] = normalize_prize(row_data)
         else:
-            table(client, "prizes").insert(payload).execute()
+            to_insert.append({
+                "rank": rank,
+                "name": name,
+                "count": count,
+                "sort_order": order,
+            })
+            insert_indices.append(order)
+
+    if to_upsert:
+        table(client, "prizes").upsert(to_upsert, on_conflict="id").execute()
+
+    if to_insert:
+        res = table(client, "prizes").insert(to_insert).execute()
+        inserted_rows = res.data or []
+        if len(inserted_rows) == len(insert_indices):
+            for idx, created in zip(insert_indices, inserted_rows):
+                result_prizes[idx] = normalize_prize(created)
+        else:
+            return load_prizes(client)
+
+    return [p for p in result_prizes if p is not None]
 
 
 def save_record(client, record: dict) -> Optional[dict]:
