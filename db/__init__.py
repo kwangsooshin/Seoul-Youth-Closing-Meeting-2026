@@ -14,6 +14,10 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 supabase_client = None
 use_supabase = False
 
+_sqlite_sync_lock = threading.Lock()
+_latest_config_snapshot: Optional[Dict[str, Any]] = None
+_latest_prizes_snapshot: Optional[List[Dict[str, Any]]] = None
+
 
 def _is_supabase_active() -> bool:
     return bool(use_supabase and supabase_client is not None)
@@ -43,8 +47,13 @@ def init_db(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[
     # 2. Supabase 클라이언트 연결 시도
     if SUPABASE_URL and SUPABASE_KEY and "your-project" not in SUPABASE_URL:
         try:
-            from supabase import create_client
-            supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+            from supabase import create_client, ClientOptions
+            schema = supabase_db.get_schema()
+            supabase_client = create_client(
+                SUPABASE_URL,
+                SUPABASE_KEY,
+                options=ClientOptions(schema=schema),
+            )
             print("[SUCCESS] Supabase 클라이언트 연결 시도 성공")
             # Supabase 테이블 유효성 검사 및 초기 시드
             supabase_db.seed_prizes_if_empty(supabase_client, default_prizes)
@@ -55,7 +64,6 @@ def init_db(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[
                     print(f"[INFO] Supabase app_config 시드 대기 (테이블 생성 전 등): {e}")
             supabase_db.load_history(supabase_client)
             use_supabase = True
-            schema = supabase_db.get_schema()
             print(f"[SUCCESS] Supabase '{schema}' 스키마 테이블 연동 완료")
         except Exception as e:
             schema = supabase_db.get_schema()
@@ -85,24 +93,31 @@ def load_app_config(fallback_config: Optional[Dict[str, Any]] = None) -> Dict[st
     return default_cfg
 
 
-def _sync_sqlite_config_bg(config: Dict[str, Any]):
-    try:
-        sqlite_db.save_config_db(config)
-    except Exception as e:
-        print(f"[WARN] SQLite config 저장 실패: {e}")
+def _sync_sqlite_config_bg():
+    with _sqlite_sync_lock:
+        snapshot = _latest_config_snapshot
+        if snapshot is None:
+            return
+        try:
+            sqlite_db.save_config_db(snapshot)
+        except Exception as e:
+            print(f"[WARN] SQLite config 저장 실패: {e}")
 
 
 def save_app_config(config: Dict[str, Any]):
     """Supabase 우선 저장, 실패/오프라인 대비 SQLite에도 동기화 저장"""
+    global _latest_config_snapshot
+    _latest_config_snapshot = dict(config)
+
     if _is_supabase_active():
         try:
-            supabase_db.save_config_db(supabase_client, config)
-            threading.Thread(target=_sync_sqlite_config_bg, args=(config,), daemon=True).start()
+            supabase_db.save_config_db(supabase_client, _latest_config_snapshot)
+            threading.Thread(target=_sync_sqlite_config_bg, daemon=True).start()
             return
         except Exception as e:
             print(f"[WARN] Supabase config 저장 실패 -> SQLite로 대체 저장: {e}")
 
-    _sync_sqlite_config_bg(config)
+    _sync_sqlite_config_bg()
 
 
 def load_prizes() -> List[Dict[str, Any]]:
@@ -121,28 +136,38 @@ def load_history() -> List[Dict[str, Any]]:
     )
 
 
-def _sync_sqlite_prizes_bg(saved_prizes: List[Dict[str, Any]]):
-    try:
-        sqlite_db.save_prizes(saved_prizes, sqlite_db.load_prizes())
-    except Exception as e:
-        print(f"[WARN] SQLite 등수 동기화 저장 실패: {e}")
+def _sync_sqlite_prizes_bg():
+    with _sqlite_sync_lock:
+        snapshot = _latest_prizes_snapshot
+        if snapshot is None:
+            return
+        try:
+            sqlite_db.save_prizes(snapshot, sqlite_db.load_prizes())
+        except Exception as e:
+            print(f"[WARN] SQLite 등수 동기화 저장 실패: {e}")
 
 
 def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    global _latest_prizes_snapshot
     if _is_supabase_active():
         try:
             saved = supabase_db.save_prizes(supabase_client, prizes, current_prizes)
-            threading.Thread(target=_sync_sqlite_prizes_bg, args=(saved,), daemon=True).start()
+            _latest_prizes_snapshot = [dict(p) for p in saved]
+            threading.Thread(target=_sync_sqlite_prizes_bg, daemon=True).start()
             return saved
         except Exception as e:
             print(f"[WARN] Supabase 등수 저장 실패 -> SQLite로 대체 저장: {e}")
+            current_prizes = sqlite_db.load_prizes()
 
     # 로컬 SQLite 저장
-    try:
-        return sqlite_db.save_prizes(prizes, current_prizes)
-    except Exception as e:
-        print(f"[WARN] SQLite 등수 저장 실패: {e}")
-        raise
+    with _sqlite_sync_lock:
+        try:
+            saved_local = sqlite_db.save_prizes(prizes, current_prizes)
+            _latest_prizes_snapshot = [dict(p) for p in saved_local]
+            return saved_local
+        except Exception as e:
+            print(f"[WARN] SQLite 등수 저장 실패: {e}")
+            raise
 
 
 def save_record(record: dict, current_prizes: List[Dict[str, Any]]) -> dict:

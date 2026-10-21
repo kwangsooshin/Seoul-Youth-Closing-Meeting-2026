@@ -88,6 +88,8 @@ def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any
 
     with sqlite_connect() as conn:
         if delete_ids:
+            # 로컬 SQLite에 잔존하는 비활성 이력으로 인한 FK 제약조건 충돌 방지
+            conn.executemany("DELETE FROM draw_history WHERE prize_id = ?", [(i,) for i in delete_ids])
             conn.executemany("DELETE FROM prizes WHERE id = ?", [(i,) for i in delete_ids])
         for order, p in enumerate(prizes):
             rank = p["rank"]
@@ -116,7 +118,9 @@ def save_prizes(prizes: List[Dict[str, Any]], current_prizes: List[Dict[str, Any
                 }))
             elif pid is not None:
                 conn.execute(
-                    "INSERT INTO prizes (id, rank, name, count, sort_order) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO prizes (id, rank, name, count, sort_order) VALUES (?, ?, ?, ?, ?) "
+                    "ON CONFLICT(id) DO UPDATE SET rank = excluded.rank, name = excluded.name, "
+                    "count = excluded.count, sort_order = excluded.sort_order",
                     (pid, rank, name, count, order),
                 )
                 result_prizes.append(normalize_prize({

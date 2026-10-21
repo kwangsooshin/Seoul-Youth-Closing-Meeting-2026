@@ -5,13 +5,23 @@ from .common import PRIZE_FIELDS, normalize_prize, compute_prize_diff
 
 SUPABASE_HISTORY_SELECT = "id, prize_id, drawn_number, status, created_at, prizes(rank, name)"
 
+_schema_clients: Dict[tuple, Any] = {}
+
 def get_schema() -> str:
     """실행 환경 ZONE(dev/service)에 따른 Supabase 스키마명 반환"""
     return SCHEMA_NAME
 
 def table(client, table_name: str):
-    """현재 스키마(dev 또는 service)의 테이블 쿼리 빌더 반환"""
-    return client.schema(get_schema()).table(table_name)
+    """현재 스키마(dev 또는 service)의 테이블 쿼리 빌더 반환 (HTTP/2 커넥션 풀 재사용)"""
+    schema = get_schema()
+    if getattr(getattr(client, "options", None), "schema", None) == schema:
+        return client.table(table_name)
+    key = (id(client), schema)
+    pg_client = _schema_clients.get(key)
+    if pg_client is None:
+        pg_client = client.schema(schema)
+        _schema_clients[key] = pg_client
+    return pg_client.table(table_name)
 
 def _flatten_history(row: Dict[str, Any]) -> Dict[str, Any]:
     prize = row.get("prizes") or {}
@@ -119,7 +129,8 @@ def save_prizes(
         res = table(client, "prizes").insert(to_insert).execute()
         inserted_rows = res.data or []
         if len(inserted_rows) == len(insert_indices):
-            for idx, created in zip(insert_indices, inserted_rows):
+            inserted_sorted = sorted(inserted_rows, key=lambda r: int(r.get("sort_order", 0)))
+            for idx, created in zip(insert_indices, inserted_sorted):
                 result_prizes[idx] = normalize_prize(created)
         else:
             return load_prizes(client)

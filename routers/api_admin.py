@@ -211,16 +211,26 @@ async def update_config(req: ConfigUpdateRequest):
             if len(req.prizes) > 100:
                 raise HTTPException(status_code=400, detail="등수는 최대 100개까지만 설정할 수 있습니다.")
 
-            prizes = [
-                {
-                    "id": p.id,
-                    "rank": _sanitize_text(p.rank, 50),
+            valid_existing_ids = {p["id"] for p in state.prizes if p.get("id") is not None}
+            seen_ids = set()
+            prizes = []
+            for p in req.prizes:
+                rank = _sanitize_text(p.rank, 50)
+                if not rank or p.count <= 0:
+                    continue
+                # 현재 상태에 존재하는 유효 ID만 인정 (임의/조작된 ID 주입 방지)
+                pid = p.id if (p.id is not None and p.id in valid_existing_ids) else None
+                if pid is not None:
+                    if pid in seen_ids:
+                        raise HTTPException(status_code=400, detail="중복된 등수 ID가 포함되어 있습니다.")
+                    seen_ids.add(pid)
+                prizes.append({
+                    "id": pid,
+                    "rank": rank,
                     "count": max(1, min(1000, p.count)),
                     "name": _sanitize_text(p.name, 100),
-                }
-                for p in req.prizes
-                if _sanitize_text(p.rank, 50) and p.count > 0
-            ]
+                })
+
             if not prizes:
                 raise HTTPException(status_code=400, detail="최소 1개 이상의 등수를 설정해야 합니다.")
 
@@ -246,8 +256,20 @@ async def update_config(req: ConfigUpdateRequest):
         }
         config_changed = new_config != state.config
 
-        # 변경된 항목만 DB 반영 (불필요한 재조회 제거)
-        if prizes_to_save is not None:
+        # 변경된 항목만 DB 반영 (불필요한 재조회 제거, 동시 변경 시 병렬 저장)
+        if prizes_to_save is not None and config_changed:
+            try:
+                saved_prizes, _ = await asyncio.gather(
+                    asyncio.to_thread(save_prizes, prizes_to_save, state.prizes),
+                    asyncio.to_thread(save_app_config, dict(new_config)),
+                )
+                state.prizes = saved_prizes
+                _sync_history_prize_labels()
+                state.refresh_selected_prize()
+            except Exception as e:
+                print(f"[ERROR] 등수 및 설정 저장 실패: {e}")
+                raise HTTPException(status_code=500, detail="등수 설정을 저장하는 중 서버 오류가 발생했습니다.")
+        elif prizes_to_save is not None:
             try:
                 state.prizes = await asyncio.to_thread(save_prizes, prizes_to_save, state.prizes)
                 _sync_history_prize_labels()
@@ -255,9 +277,11 @@ async def update_config(req: ConfigUpdateRequest):
             except Exception as e:
                 print(f"[ERROR] 등수 저장 실패: {e}")
                 raise HTTPException(status_code=500, detail="등수 설정을 저장하는 중 서버 오류가 발생했습니다.")
-
-        if config_changed:
-            asyncio.create_task(asyncio.to_thread(save_app_config, new_config))
+        elif config_changed:
+            try:
+                await asyncio.to_thread(save_app_config, dict(new_config))
+            except Exception as e:
+                print(f"[WARN] 설정 DB 저장 오류: {e}")
 
         state.config = new_config
         stats = state.get_stats()

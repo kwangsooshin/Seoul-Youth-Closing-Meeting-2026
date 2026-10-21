@@ -809,7 +809,7 @@
             <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; color: #cbd5e1; font-weight: 600;">YouTube 음원 링크 설정 (현장 스크린 무한 반복 재생)</label>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <input type="text" id="cfgYoutube" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=ujCh9JIxCeA" style="flex: 1; min-width: 240px;">
-              <button class="btn btn-orange" style="padding: 9px 16px; font-size: 0.88rem; white-space: nowrap;" onclick="saveBgmOnly()">💾 음원 저장하기</button>
+              <button class="btn btn-orange" id="btnSaveBgmOnly" style="padding: 9px 16px; font-size: 0.88rem; white-space: nowrap;" onclick="saveBgmOnly()">💾 음원 저장하기</button>
             </div>
             <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 6px;">
               기본 추천 음원: <a href="https://www.youtube.com/watch?v=ujCh9JIxCeA" target="_blank" style="color: var(--primary-sky); text-decoration: underline;">Lucky Draw Music (행사 추첨 긴장감 & 축하 BGM)</a>
@@ -1739,6 +1739,9 @@
     }
 
     async function saveConfiguration() {
+      const btnSave = document.getElementById('btnSaveConfig');
+      if (btnSave && btnSave.disabled) return;
+
       const minNum = parseInt(document.getElementById('cfgMin').value);
       const maxNum = parseInt(document.getElementById('cfgMax').value);
 
@@ -1766,7 +1769,6 @@
       }
 
       const youtubeUrl = document.getElementById('cfgYoutube') ? document.getElementById('cfgYoutube').value.trim() : '';
-      const btnSave = document.getElementById('btnSaveConfig');
       const originalText = btnSave ? btnSave.innerHTML : '💾 설정 저장하기';
       if (btnSave) {
         btnSave.disabled = true;
@@ -2148,6 +2150,9 @@
     }
 
     async function saveBgmOnly() {
+      const btnBgm = document.getElementById('btnSaveBgmOnly');
+      if (btnBgm && btnBgm.disabled) return;
+
       if (!currentState) {
         alert('서버 상태를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
         return;
@@ -2156,6 +2161,11 @@
       if (!youtubeUrl) {
         alert('YouTube 영상 링크를 입력해주세요.');
         return;
+      }
+      const originalText = btnBgm ? btnBgm.innerHTML : '💾 음원 저장하기';
+      if (btnBgm) {
+        btnBgm.disabled = true;
+        btnBgm.innerHTML = '⏳ 저장 중...';
       }
       try {
         const res = await adminFetch('/api/config', {
@@ -2180,6 +2190,11 @@
         }
       } catch (err) {
         alert('요청 중 오류가 발생했습니다.');
+      } finally {
+        if (btnBgm) {
+          btnBgm.disabled = false;
+          btnBgm.innerHTML = originalText;
+        }
       }
     }
 
