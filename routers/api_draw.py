@@ -39,6 +39,7 @@ async def set_lottery_session(req: LotterySessionRequest):
         started = state.is_started
         started_at = state.session_started_at
         last_active_at = state.session_last_active_at
+        audio_state = dict(state.audio_state)
 
     await manager.broadcast({
         "type": "LOTTERY_SESSION_STATE",
@@ -50,7 +51,8 @@ async def set_lottery_session(req: LotterySessionRequest):
         "success": True,
         "started": started,
         "session_started_at": started_at,
-        "session_last_active_at": last_active_at
+        "session_last_active_at": last_active_at,
+        "audio_state": audio_state
     }
 
 

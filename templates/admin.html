@@ -1815,6 +1815,14 @@
             currentState.is_lottery_started = data.started;
             currentState.session_started_at = data.session_started_at;
             currentState.session_last_active_at = data.session_last_active_at;
+            if (data.audio_state) {
+              currentState.audio_state = data.audio_state;
+            }
+          }
+          if (data.audio_state) {
+            updateAdminAudioUI(data.audio_state);
+          } else if (!data.started) {
+            updateAdminAudioUI({ ...adminAudioState, bgm_paused: true });
           }
           touchSessionActivity(data.session_last_active_at ? data.session_last_active_at * 1000 : null);
           updateSessionUI(data.started, data.session_started_at, data.session_last_active_at);

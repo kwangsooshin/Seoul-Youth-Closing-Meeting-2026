@@ -40,10 +40,11 @@ class LotteryState:
             self.session_last_active_at = now or time.time()
 
     def stop_session(self):
-        """추첨 세션 종료 (대기화면 복귀)"""
+        """추첨 세션 종료 (대기화면 복귀 및 BGM 정지 상태 반영)"""
         self.is_started = False
         self.session_started_at = None
         self.session_last_active_at = None
+        self.audio_state["bgm_paused"] = True
 
     def reset_state(self):
         """추첨 이력 및 진행 상태 전체 초기화"""

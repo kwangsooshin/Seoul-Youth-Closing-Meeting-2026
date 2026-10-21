@@ -1927,6 +1927,7 @@
           if (!msg.started) {
             // 대기화면 복귀 시 BGM 정지 및 재생 중단
             isBgmPaused = true;
+            if (bgmCheckInterval) { clearInterval(bgmCheckInterval); bgmCheckInterval = null; }
             if (fadeInterval) { clearInterval(fadeInterval); fadeInterval = null; }
             if (ytPlayer) {
               try {
@@ -1935,7 +1936,11 @@
                 else if (ytPlayer.pauseVideo) ytPlayer.pauseVideo();
               } catch (e) {}
             }
-            updateSoundStatusBadge();
+            if (msg.data && msg.data.audio_state) {
+              applyAudioState(msg.data.audio_state);
+            } else {
+              updateSoundStatusBadge();
+            }
             if (msg.auto_timeout) {
               console.log('[AUTO_TIMEOUT] 3시간 경과: 대기화면으로 자동 복귀되고 BGM이 종료되었습니다.');
             }
@@ -2005,6 +2010,21 @@
         } else if (msg.type === 'DRAW_RESET') {
           // 초기화 이벤트: 대기 모드로 되돌리고 BGM 끄기
           setLotterySessionState(false);
+          isBgmPaused = true;
+          if (bgmCheckInterval) { clearInterval(bgmCheckInterval); bgmCheckInterval = null; }
+          if (fadeInterval) { clearInterval(fadeInterval); fadeInterval = null; }
+          if (ytPlayer) {
+            try {
+              if (ytPlayer.seekTo) ytPlayer.seekTo(0);
+              if (ytPlayer.stopVideo) ytPlayer.stopVideo();
+              else if (ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+            } catch (e) {}
+          }
+          if (msg.data && msg.data.audio_state) {
+            applyAudioState(msg.data.audio_state);
+          } else {
+            updateSoundStatusBadge();
+          }
           document.getElementById('luckyNumberDisplay').textContent = '???';
           document.getElementById('slotBox').className = 'slot-machine-container';
           document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 대기 모드로 전환합니다.';
