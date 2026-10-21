@@ -33,16 +33,19 @@ FastAPI + WebSocket + uv 기반의 실시간 반응형 현장 추첨 웹 애플�
 
 단일 무료 Supabase 프로젝트에서 **Postgres Schema 분리 방식**을 적용하여 추가 비용 없이 **개발용(`dev`)**과 **실서비스 운영용(`service`)** 데이터를 100% 독립 격리하여 운영할 수 있습니다 (미설정 시 로컬 머신별 SQLite `lottery.db`로 자동 무중단 동작):
 
-### 1단계: SQL Editor에서 스키마 및 테이블 생성
+### 1단계: SQL Editor에서 스키마·테이블 생성 및 RLS/권한 보안 적용
 1. [Supabase 대시보드](https://supabase.com) 접속 후 왼쪽 메뉴의 **[SQL Editor]** (코드 아이콘 `>_`)로 이동합니다.
 2. 아래 스키마 정의 SQL 파일의 내용을 전체 복사하여 붙여넣고 **[Run]**을 실행합니다:
    - 👉 **통합 스키마 SQL 파일:** [`db/sql/supabase/schema.sql`](db/sql/supabase/schema.sql)
-   - `dev` 및 `service` 스키마와 각각의 4개 테이블(`prizes`, `draw_history`, `app_config`, `access_logs`)이 자동 생성되고 권한이 부여됩니다.
+   - `dev` 및 `service` 스키마와 각각의 4개 테이블(`prizes`, `draw_history`, `app_config`, `access_logs`)이 생성됩니다.
+   - **보안(RLS) 및 권한 자동 구성**:
+     - 모든 테이블(`dev`, `service`, 그리고 남아 있을 수 있는 레거시 `public` 테이블)에 **Row-Level Security (RLS)**가 자동 활성화되어 `rls_disabled_in_public` 보안 경고를 완벽히 해결합니다.
+     - 외부 공개 역할(`anon`, `authenticated`)의 테이블 접근 권한을 회수(`REVOKE`)하고, 백엔드 전용 역할인 **`service_role`에만 명시적 `GRANT` 권한(`select, insert, update, delete`)**을 부여합니다 (2026년 10월 30일 Supabase 자동 GRANT 중단 정책 대응 완료).
 
 ### 2단계: Data API에 스키마 노출 등록 (필수 1회)
 1. 좌측 하단 **⚙️ Project Settings** → **Data API** (또는 `API Settings`) 메뉴로 이동합니다.
    *(직통 URL: `https://supabase.com/dashboard/project/<내프로젝트ID>/settings/api`)*
-2. **Exposed schemas** 드롭다운 목록에서 방금 생성된 **`dev`**와 **`service`**를 체크/선택합니다. (`public`은 제외하거나 함께 두셔도 무방합니다)
+2. **Exposed schemas** 드롭다운 목록에서 **`dev`**와 **`service`**를 등록합니다. (미사용 `public` 스키마는 제외하는 것을 권장합니다)
 3. **[Save]** 버튼을 눌러 저장합니다.
 
 > 💡 각 스키마의 `prizes` 및 `app_config` 테이블이 비어 있으면 서버 최초 시작 시 기본 등수(3등/2등/1등)와 기본 설정이 자동으로 시드됩니다.
@@ -63,8 +66,9 @@ ZONE=dev
 ADMIN_PASSWORD=admin1234
 
 # Supabase 연동 시 (미입력 시 로컬 머신별 SQLite로 자동 작동)
+# [보안 필수] RLS가 활성화되어 있으므로 반드시 service_role (또는 sb_secret_...) 키를 사용하세요.
 SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_KEY=your-supabase-key
+SUPABASE_KEY=your-supabase-service-role-or-secret-key
 ```
 
 ---
@@ -121,7 +125,7 @@ uv run uvicorn main:app --reload --port 8000
    - `ZONE`: `service` *(실서비스 운영용 스키마 연결)*
    - `ADMIN_PASSWORD`: 행사 당일 사용할 관리자 비밀번호 (기본값: `admin1234`)
    - `SUPABASE_URL`: (권장) Supabase Project URL *(클라우드 배포 시 인스턴스 재시작 간 데이터 영구 보존을 위해 Supabase 연동 권장)*
-   - `SUPABASE_KEY`: (권장) Supabase Key
+   - `SUPABASE_KEY`: (권장) Supabase **`service_role` (또는 `sb_secret_...`)** Key
 6. **Deploy Web Service** 클릭 시 배포가 완료되며 공용 URL이 생성됩니다.
    - **배포 도메인 예시**: `https://<내-Render-도메인>.onrender.com`
    - **현장 스크린 송출 화면**: `https://<내-Render-도메인>.onrender.com/display` (또는 `/`)
@@ -169,6 +173,3 @@ UptimeRobot이 주기적으로 `/healthz` 엔드포인트를 호출(HTTP HEAD �
   }
   ```
 - 관리자 콘솔([`/admin`](http://localhost:8000/admin) 또는 `https://<내-Render-도메인>.onrender.com/admin`)의 **`📋 접속 감사 로그`** 탭에서 녹색 **`🤖 healthcheck`** 뱃지와 함께 UptimeRobot의 핑 기록이 실시간으로 확인됩니다.
-
-
-
