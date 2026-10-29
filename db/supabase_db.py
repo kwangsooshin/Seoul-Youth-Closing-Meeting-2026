@@ -42,7 +42,7 @@ def seed_prizes_if_empty(client, default_prizes: List[Dict[str, Any]]):
         table(client, "prizes").insert(
             [{**p, "sort_order": idx} for idx, p in enumerate(default_prizes)]
         ).execute()
-        print(f"[INFO] Supabase '{schema}.prizes' 테이블에 기본 등수를 시드했습니다.")
+        print(f"[INFO] Supabase({schema}) 기본 등수를 시드했습니다.")
 
 def seed_config_if_empty(client, default_config: Dict[str, Any]):
     schema = get_schema()
@@ -52,7 +52,7 @@ def seed_config_if_empty(client, default_config: Dict[str, Any]):
             "id": "current",
             "data": default_config
         }).execute()
-        print(f"[INFO] Supabase '{schema}.app_config' 테이블에 기본 설정을 시드했습니다.")
+        print(f"[INFO] Supabase({schema}) 기본 설정을 시드했습니다.")
 
 def load_config_db(client) -> Optional[Dict[str, Any]]:
     res = table(client, "app_config").select("data").eq("id", "current").limit(1).execute()
@@ -156,7 +156,9 @@ def delete_last_record(client) -> Optional[int]:
     return None
 
 def clear_records(client):
+    schema = get_schema()
     table(client, "draw_history").delete().neq("id", 0).execute()
+    print(f"[SUCCESS] Supabase({schema}) 데이터가 초기화되었습니다.")
 
 def save_access_log(client, ip: str, page_type: str, path: str, user_agent: str = ""):
     """Supabase access_logs 테이블에 접속 감사 로그 저장"""
@@ -180,10 +182,11 @@ def cleanup_old_access_logs(client, hours: int = 24) -> int:
         res = table(client, "access_logs").delete().lt("created_at", cutoff).execute()
         deleted_count = len(res.data) if res.data else 0
         if deleted_count > 0:
-            print(f"[INFO] Supabase [{schema}]: {deleted_count}건의 {hours}시간 경과 감사 로그를 정리했습니다.")
+            print(f"[INFO] Supabase({schema}) {deleted_count}건의 {hours}시간 경과 감사 로그를 정리했습니다.")
         return deleted_count
     except Exception as e:
-        print(f"[WARN] Supabase 감사 로그 정리 오류: {e}")
+        schema = get_schema()
+        print(f"[WARN] Supabase({schema}) 감사 로그 정리 오류: {e}")
         return 0
 
 def clear_all_access_logs(client) -> int:
@@ -192,8 +195,9 @@ def clear_all_access_logs(client) -> int:
         schema = get_schema()
         res = table(client, "access_logs").delete().neq("id", 0).execute()
         deleted_count = len(res.data) if res.data else 0
-        print(f"[INFO] Supabase [{schema}]: 전체 {deleted_count}건의 감사 로그를 초기화했습니다.")
+        print(f"[SUCCESS] Supabase({schema}) 감사 로그 {deleted_count}건이 초기화되었습니다.")
         return deleted_count
     except Exception as e:
-        print(f"[WARN] Supabase 감사 로그 전체 삭제 오류: {e}")
+        schema = get_schema()
+        print(f"[WARN] Supabase({schema}) 감사 로그 전체 삭제 오류: {e}")
         return 0

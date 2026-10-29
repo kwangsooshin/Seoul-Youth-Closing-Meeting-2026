@@ -37,6 +37,7 @@ def init_sqlite(default_prizes: List[Dict[str, Any]], default_config: Optional[D
                         "INSERT INTO prizes (rank, name, count, sort_order) VALUES (?, ?, ?, ?)",
                         (p["rank"], p.get("name", ""), p["count"], idx),
                     )
+                print("[INFO] 로컬 SQLite(lottery.db) 기본 등수를 시드했습니다.")
             # app_config 테이블이 비어있으면 초기 config 시드
             if default_config:
                 cur_cfg = conn.execute("SELECT COUNT(*) FROM app_config WHERE id = 'current'")
@@ -45,9 +46,10 @@ def init_sqlite(default_prizes: List[Dict[str, Any]], default_config: Optional[D
                         "INSERT INTO app_config (id, data) VALUES ('current', ?)",
                         (json.dumps(default_config, ensure_ascii=False),),
                     )
+                    print("[INFO] 로컬 SQLite(lottery.db) 기본 설정을 시드했습니다.")
             conn.commit()
     except Exception as e:
-        print(f"[WARN] SQLite 초기화 오류: {e}")
+        print(f"[WARN] 로컬 SQLite(lottery.db) 초기화 오류: {e}")
 
 def load_config_db() -> Optional[Dict[str, Any]]:
     """SQLite에서 app_config JSON 로드"""
@@ -223,10 +225,10 @@ def cleanup_old_access_logs(hours: int = 24) -> int:
             deleted_count = cur.rowcount
             conn.commit()
             if deleted_count > 0:
-                print(f"[INFO] SQLite: {deleted_count}건의 {hours}시간 경과 감사 로그를 정리했습니다.")
+                print(f"[INFO] 로컬 SQLite(lottery.db) {deleted_count}건의 {hours}시간 경과 감사 로그를 정리했습니다.")
             return deleted_count
     except Exception as e:
-        print(f"[WARN] SQLite 감사 로그 정리 오류: {e}")
+        print(f"[WARN] 로컬 SQLite(lottery.db) 감사 로그 정리 오류: {e}")
         return 0
 
 def clear_all_access_logs() -> int:
@@ -236,10 +238,10 @@ def clear_all_access_logs() -> int:
             cur = conn.execute("DELETE FROM access_logs")
             deleted_count = cur.rowcount
             conn.commit()
-            print(f"[INFO] SQLite: 전체 {deleted_count}건의 감사 로그를 초기화했습니다.")
+            print(f"[SUCCESS] 로컬 SQLite(lottery.db) 감사 로그 {deleted_count}건이 초기화되었습니다.")
             return deleted_count
     except Exception as e:
-        print(f"[WARN] SQLite 감사 로그 전체 삭제 오류: {e}")
+        print(f"[WARN] 로컬 SQLite(lottery.db) 감사 로그 전체 삭제 오류: {e}")
         return 0
 
 

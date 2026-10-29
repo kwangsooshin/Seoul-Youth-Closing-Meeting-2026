@@ -54,20 +54,19 @@ def init_db(default_prizes: List[Dict[str, Any]], default_config: Optional[Dict[
                 SUPABASE_KEY,
                 options=ClientOptions(schema=schema),
             )
-            print("[SUCCESS] Supabase 클라이언트 연결 시도 성공")
             # Supabase 테이블 유효성 검사 및 초기 시드
             supabase_db.seed_prizes_if_empty(supabase_client, default_prizes)
             if default_config:
                 try:
                     supabase_db.seed_config_if_empty(supabase_client, default_config)
                 except Exception as e:
-                    print(f"[INFO] Supabase app_config 시드 대기 (테이블 생성 전 등): {e}")
+                    print(f"[INFO] Supabase({schema}) app_config 시드 대기: {e}")
             supabase_db.load_history(supabase_client)
             use_supabase = True
-            print(f"[SUCCESS] Supabase '{schema}' 스키마 테이블 연동 완료")
+            print(f"[SUCCESS] Supabase({schema}) 테이블 연동 완료")
         except Exception as e:
             schema = supabase_db.get_schema()
-            print(f"[INFO] Supabase '{schema}' 스키마 연결/테이블 불가 ({e}) -> 로컬 SQLite 모드로 동작합니다.")
+            print(f"[INFO] Supabase({schema}) 연결 불가 ({e}) -> 로컬 SQLite(lottery.db) 모드로 동작합니다.")
             use_supabase = False
     else:
         print("[INFO] Supabase 설정이 없어 로컬 SQLite(lottery.db) 모드로 동작합니다.")
@@ -211,12 +210,13 @@ def clear_records():
         try:
             supabase_db.clear_records(supabase_client)
         except Exception as e:
-            print(f"[WARN] Supabase 초기화 오류: {e}")
+            schema = supabase_db.get_schema()
+            print(f"[WARN] Supabase({schema}) 초기화 오류: {e}")
 
     try:
         sqlite_db.clear_records()
     except Exception as e:
-        print(f"[WARN] SQLite 초기화 오류: {e}")
+        print(f"[WARN] 로컬 SQLite(lottery.db) 초기화 오류: {e}")
 
 
 def get_db_info(history_count: int) -> Dict[str, str]:
