@@ -2053,9 +2053,9 @@
             } else {
               updateSoundStatusBadge();
             }
-            document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 대기 모드로 전환합니다.';
+            document.getElementById('drawStatusMsg').textContent = '잠시 후 추첨이 시작됩니다! 행운을 빕니다 ✨';
           } else {
-            document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 잠시 후 추첨이 시작됩니다! ✨';
+            document.getElementById('drawStatusMsg').textContent = '잠시 후 추첨이 시작됩니다! 행운을 빕니다 ✨';
           }
           renderState(msg.data);
         } else if (msg.type === 'BGM_CONTROL') {
