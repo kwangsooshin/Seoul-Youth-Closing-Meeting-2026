@@ -1159,19 +1159,26 @@
 
     // --- 탭 전환 ---
     function switchTab(tabId, btn) {
-
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-      const targetContent = document.getElementById(tabId);
-      if (targetContent) targetContent.classList.add('active');
-      if (btn) {
-        btn.classList.add('active');
-      } else {
-        const targetBtn = document.querySelector(`.tab-button[onclick*="'${tabId}'"]`);
-        if (targetBtn) targetBtn.classList.add('active');
-      }
-      if (tabId === 'drawTab' && !isScreenRolling && (!currentState || !currentState.current_pending_draw)) {
-        resetDrawControlsToIdle();
+      try {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+        const targetContent = document.getElementById(tabId);
+        if (targetContent) targetContent.classList.add('active');
+        if (btn) {
+          btn.classList.add('active');
+        } else {
+          const targetBtn = document.querySelector(`.tab-button[onclick*="'${tabId}'"]`);
+          if (targetBtn) targetBtn.classList.add('active');
+        }
+        if (tabId === 'drawTab') {
+          if (currentState && currentState.current_pending_draw) {
+            handleDrawRollingStart(currentState.current_pending_draw, !isScreenRolling);
+          } else if (!isScreenRolling) {
+            resetDrawControlsToIdle();
+          }
+        }
+      } catch (e) {
+        console.warn('탭 전환 오류 방어:', e);
       }
     }
 
@@ -1189,6 +1196,13 @@
         const msg = JSON.parse(event.data);
         if (msg.type === 'SYNC_STATE' || msg.type === 'CONFIG_UPDATED' || msg.type === 'DRAW_CONFIRMED' || msg.type === 'DRAW_PASSED' || msg.type === 'DRAW_RESET' || msg.type === 'DRAW_CANCELLED' || msg.type === 'LOTTERY_SESSION_STATE' || msg.type === 'PRIZE_TARGET_CHANGED') {
           currentState = msg.data;
+          if (msg.type === 'DRAW_RESET') {
+            if (rollingTimer) {
+              clearTimeout(rollingTimer);
+              rollingTimer = null;
+            }
+            isScreenRolling = false;
+          }
           if (msg.data && msg.data.session_last_active_at) {
             touchSessionActivity(msg.data.session_last_active_at * 1000);
           }
@@ -1201,6 +1215,9 @@
             updateAdminAudioUI(msg.audio_state);
           }
         } else if (msg.type === 'DRAW_ROLLING_START') {
+          if (currentState) {
+            currentState.current_pending_draw = msg.data;
+          }
           handleDrawRollingStart(msg.data);
         } else if (msg.type === 'DRAW_ROLLING_COMPLETE') {
           handleDrawRollingComplete();
@@ -1400,12 +1417,19 @@
       const undoGroup = document.getElementById('undoLastGroup');
       if (undoGroup) undoGroup.style.display = 'none';
 
-      preview.textContent = `#${drawItem.number}`;
-      preview.className = 'drawn-preview-number';
-      document.getElementById('targetPrizeBadge').textContent = `[${drawItem.prize_rank}] ${drawItem.prize_name || ''}`;
+      if (preview) {
+        preview.textContent = `#${drawItem.number}`;
+        preview.className = 'drawn-preview-number';
+      }
+      const badge = document.getElementById('targetPrizeBadge');
+      if (badge) {
+        badge.textContent = `[${drawItem.prize_rank}] ${drawItem.prize_name || ''}`;
+      }
 
-      document.getElementById('btnDrawStart').style.display = 'none';
-      document.getElementById('confirmPassGroup').style.display = 'grid';
+      const btnDrawStart = document.getElementById('btnDrawStart');
+      if (btnDrawStart) btnDrawStart.style.display = 'none';
+      const cpGroup = document.getElementById('confirmPassGroup');
+      if (cpGroup) cpGroup.style.display = 'grid';
 
       if (rollingTimer) clearTimeout(rollingTimer);
 
@@ -1413,7 +1437,10 @@
         handleDrawRollingComplete();
       } else {
         isScreenRolling = true;
-        document.getElementById('actionStatusLabel').innerHTML = '⏳ <strong style="color:var(--accent-orange);">스크린에서 번호 추첨 중입니다...</strong> (추첨 완료 후 확정 버튼이 활성화됩니다)';
+        const statusLabel = document.getElementById('actionStatusLabel');
+        if (statusLabel) {
+          statusLabel.innerHTML = '⏳ <strong style="color:var(--accent-orange);">스크린에서 번호 추첨 중입니다...</strong> (추첨 완료 후 확정 버튼이 활성화됩니다)';
+        }
         if (btnConfirm) {
           btnConfirm.disabled = true;
           btnConfirm.style.opacity = '0.5';
@@ -1439,7 +1466,10 @@
         clearTimeout(rollingTimer);
         rollingTimer = null;
       }
-      document.getElementById('actionStatusLabel').textContent = '⚠️ 번호가 추출되었습니다! 호명 후 [당첨 확정] 또는 [패스]를 누르세요.';
+      const label = document.getElementById('actionStatusLabel');
+      if (label) {
+        label.textContent = '⚠️ 번호가 추출되었습니다! 호명 후 [당첨 확정] 또는 [패스]를 누르세요.';
+      }
       const btnConfirm = document.getElementById('btnConfirm');
       const btnPass = document.getElementById('btnPass');
       if (btnConfirm) {
@@ -1530,6 +1560,8 @@
         const data = await res.json();
         if (!res.ok) {
           alert(data.detail || data.message || '추첨 시작 실패');
+        } else if (data && data.data && currentState) {
+          currentState.current_pending_draw = data.data;
         }
       } catch (err) {
         alert('요청 중 오류가 발생했습니다.');
@@ -1621,9 +1653,19 @@
           body: JSON.stringify({})
         });
         if (res.ok) {
+          if (rollingTimer) {
+            clearTimeout(rollingTimer);
+            rollingTimer = null;
+          }
+          isScreenRolling = false;
+          if (currentState) {
+            currentState.current_pending_draw = null;
+          }
+          resetDrawControlsToIdle();
           alert('추첨 데이터가 완전히 초기화되었습니다.');
         } else {
-          alert('초기화 실패');
+          const err = await res.json().catch(() => ({}));
+          alert(err.detail || '초기화 실패');
         }
       } catch (err) {
         alert('요청 실패');

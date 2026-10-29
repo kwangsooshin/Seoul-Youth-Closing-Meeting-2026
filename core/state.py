@@ -46,11 +46,12 @@ class LotteryState:
         self.session_last_active_at = None
         self.audio_state["bgm_paused"] = True
 
-    def reset_state(self):
+    def reset_state(self, keep_session: bool = False):
         """추첨 이력 및 진행 상태 전체 초기화"""
         self.history = []
         self.pending_draw = None
-        self.stop_session()
+        if not keep_session:
+            self.stop_session()
         self.refresh_selected_prize()
 
     def refresh_selected_prize(self):

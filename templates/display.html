@@ -2024,26 +2024,39 @@
           statusMsg.innerHTML = `<span class="badge-passed-alert">⚠️ #${item.number}번 참석자 부재로 패스 처리되었습니다. 다음 번호를 추첨합니다.</span>`;
           renderState(msg.data);
         } else if (msg.type === 'DRAW_RESET') {
-          // 초기화 이벤트: 대기 모드로 되돌리고 BGM 끄기
-          setLotterySessionState(false);
-          isBgmPaused = true;
-          if (bgmCheckInterval) { clearInterval(bgmCheckInterval); bgmCheckInterval = null; }
-          if (fadeInterval) { clearInterval(fadeInterval); fadeInterval = null; }
-          if (ytPlayer) {
-            try {
-              if (ytPlayer.seekTo) ytPlayer.seekTo(0);
-              if (ytPlayer.stopVideo) ytPlayer.stopVideo();
-              else if (ytPlayer.pauseVideo) ytPlayer.pauseVideo();
-            } catch (e) {}
+          // 초기화 이벤트: 롤링 진행 중이면 즉시 중단
+          if (isCurrentlyRolling) {
+            clearInterval(rollingInterval);
+            isCurrentlyRolling = false;
           }
-          if (msg.data && msg.data.audio_state) {
-            applyAudioState(msg.data.audio_state);
-          } else {
-            updateSoundStatusBadge();
-          }
+
           document.getElementById('luckyNumberDisplay').textContent = '???';
+          document.getElementById('luckyNumberDisplay').className = 'lucky-number-display';
           document.getElementById('slotBox').className = 'slot-machine-container';
-          document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 대기 모드로 전환합니다.';
+
+          const isStarted = Boolean(msg.data && msg.data.is_lottery_started);
+          setLotterySessionState(isStarted);
+
+          if (!isStarted) {
+            isBgmPaused = true;
+            if (bgmCheckInterval) { clearInterval(bgmCheckInterval); bgmCheckInterval = null; }
+            if (fadeInterval) { clearInterval(fadeInterval); fadeInterval = null; }
+            if (ytPlayer) {
+              try {
+                if (ytPlayer.seekTo) ytPlayer.seekTo(0);
+                if (ytPlayer.stopVideo) ytPlayer.stopVideo();
+                else if (ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+              } catch (e) {}
+            }
+            if (msg.data && msg.data.audio_state) {
+              applyAudioState(msg.data.audio_state);
+            } else {
+              updateSoundStatusBadge();
+            }
+            document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 대기 모드로 전환합니다.';
+          } else {
+            document.getElementById('drawStatusMsg').textContent = '추첨이 초기화되었습니다. 잠시 후 추첨이 시작됩니다! ✨';
+          }
           renderState(msg.data);
         } else if (msg.type === 'BGM_CONTROL') {
           // 관리자 원격 BGM & 현장 사운드 제어 이벤트

@@ -213,10 +213,11 @@ async def cancel_last_draw():
 
 @router.post("/reset")
 async def reset_draw():
-    """추첨 이력 전체 초기화"""
+    """추첨 이력 전체 초기화 (진행 중인 번호는 버리고 기존 추첨 시작 세션 유지)"""
     async with state.lock:
         await asyncio.to_thread(clear_records)
-        state.reset_state()
+        was_started = state.is_started
+        state.reset_state(keep_session=was_started)
         stats = state.get_stats()
 
     await manager.broadcast({
